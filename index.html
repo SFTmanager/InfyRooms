@@ -2,22 +2,28 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <!-- Запрещаем зум экрана на телефонах, чтобы игра не прыгала при тапах -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cyber Roulette</title>
-    
-    <!-- Официальный скрипт Telegram Web App SDK -->
+    <title>Cyber Roulette WebApp</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- ЭКРАН 1: ГЛАВНОЕ МЕНЮ (Вертикальное под мобилку) -->
     <div id="main-menu" class="screen">
         <h1 class="game-title">CYBER<br>ROULETTE</h1>
-        <!-- Кнопки теперь снизу в сетку 2х2, удобно кликать одной рукой -->
-        <div class = "left-wing">
+        
+        <div class="account-balance">
+            <div class="xp-bar-container">
+                <span class="xp-text">🌟 Ур. <span id="account-lvl">1</span> (<span id="account-xp">0</span> XP)</span>
+            </div>
+            <div class="currency-grid">
+                <span>💰 <span id="account-gold">0</span></span>
+                <span>💎 <span id="account-gems">0</span></span>
+                <span>👾 <span id="account-event">0</span></span>
+            </div>
+        </div>
+        
+        <div class="left-wing">
             <button class="btn-side" disabled>🎁 Ивенты</button>
             <button class="btn-side" disabled>🏆 Топ</button>
         </div>
@@ -26,18 +32,20 @@
             <button class="btn-side" disabled>🛒 Магазин</button>
             <button class="btn-side" disabled>🎭 Скины</button>
         </div>
+
         <button id="btn-play" class="btn-main">ИГРАТЬ</button>
     </div>
 
-    <!-- ЭКРАН 2: ИГРОВОЙ ПРОЦЕСС -->
     <div id="game-screen" class="screen hidden">
         <div class="game-header">
-            <div class="stat">⚡ <span id="energy-val">7</span>/7</div>
-            <div class="stat">💰 <span id="current-loot">0</span></div>
-            <div class="stat">🚪 Кмн: <span id="room-step">1</span></div>
+            <div class="stat-box">⚡ <span id="energy-val">7</span>/7</div>
+            <div class="stat-box rucksack">
+                <span class="rucksack-title">🎒 В рюкзаке:</span>
+                <span id="loot-summary">✨0 XP | 💰0 | 💎0 | 👾0</span>
+            </div>
+            <div class="stat-box">🚪 Кмн: <span id="room-step">1</span></div>
         </div>
 
-        <!-- Двери теперь стоят в ряд, крупные, чтобы легко попадать пальцем -->
         <div class="doors-container">
             <div class="door" data-id="0">🚪</div>
             <div class="door" data-id="1">🚪</div>
@@ -49,7 +57,6 @@
         </div>
     </div>
 
-    <!-- ЭКРАН ОВЕРЛЕЙ: РЕЗУЛЬТАТ ДВЕРИ -->
     <div id="result-overlay" class="overlay hidden">
         <div class="overlay-content">
             <div id="result-emoji" class="result-big-emoji">💰</div>

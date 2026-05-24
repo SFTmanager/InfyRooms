@@ -1,156 +1,233 @@
-// ==========================================
-// 1. ИНИЦИАЛИЗАЦИЯ И ПОДКЛЮЧЕНИЕ TELEGRAM
-// ==========================================
+// Старт ТГ WebApp
 if (window.Telegram && window.Telegram.WebApp) {
     window.Telegram.WebApp.ready();
     window.Telegram.WebApp.expand();
 }
 
-// Получаем элементы экранов
+// Экраны
 const mainMenu = document.getElementById('main-menu');
 const gameScreen = document.getElementById('game-screen');
 const resultOverlay = document.getElementById('result-overlay');
 
-// Получаем кнопки управления
+// Элементы управления
 const btnPlay = document.getElementById('btn-play');
 const btnCashout = document.getElementById('btn-cashout');
 const btnContinue = document.getElementById('btn-continue');
 const doors = document.querySelectorAll('.door');
 
-// Элементы статистики и плашек
+// Элементы аккаунта в меню
+const accLvlEl = document.getElementById('account-lvl');
+const accXpEl = document.getElementById('account-xp');
+const accGoldEl = document.getElementById('account-gold');
+const accGemsEl = document.getElementById('account-gems');
+const accEventEl = document.getElementById('account-event');
+
+// Элементы рейда на игровом экране
 const energyEl = document.getElementById('energy-val');
-const lootEl = document.getElementById('current-loot');
 const roomEl = document.getElementById('room-step');
+const lootSummaryEl = document.getElementById('loot-summary');
 const resultEmoji = document.getElementById('result-emoji');
 const resultText = document.getElementById('result-text');
 
 // ==========================================
-// 2. СОСТОЯНИЕ ИГРЫ (БАЛАНС И ХАРАКТЕРИСТИКИ)
+// ГЛОБАЛЬНЫЙ ПРОФИЛЬ ИГРОКА (ДАННЫЕ)
 // ==========================================
-let energy = 7;
-let currentLoot = 0;
+let userAccount = {
+    lvl: 1,
+    xp: 0,
+    gold: 0,
+    gems: 0,
+    eventChips: 0, // Ивентовая херня
+    energy: 7
+};
+
+// ТЕКУЩИЙ РЮКЗАК РЕЙДА
+let currentRucksack = {
+    xp: 0,
+    gold: 0,
+    gems: 0,
+    eventChips: 0
+};
+
 let roomStep = 1;
-let isDeadInThisRoom = false; 
-let canClickDoor = true; // Блокиратор спам-кликов во время анимации
-
-const lootPool = [100, 250, 500, 1000, 2500, 5000, 10000];
-const emojiPool = ['💰', '💎', '👑', '✨', '🏆', '🎰'];
+let isDeadInThisRoom = false;
+let canClickDoor = true;
 
 // ==========================================
-// 3. ЛОГИКА ПЕРЕХОДОВ И КЛИКОВ
+// ТAБЛИЦА ДРОПА (РАСПРЕДЕЛЕНИЕ ШAНСОВ)
+// ==========================================
+function getRoomReward() {
+    const chance = Math.random();
+    // Базовый множитель наград от номера комнаты
+    const multiplier = 1 + (roomStep * 0.15); 
+    
+    // Каждая комната гарантированно дает немного опыта (ХР)
+    const xpGained = Math.floor((Math.random() * 10 + 5) * multiplier);
+
+    if (chance < 0.60) {
+        // 60% — Золото
+        const goldGained = Math.floor((Math.random() * 80 + 40) * multiplier);
+        return { type: 'gold', amount: goldGained, xp: xpGained, emoji: '💰', name: 'Монеты' };
+    } else if (chance < 0.85) {
+        // 25% — Кристаллы
+        const gemsGained = Math.floor((Math.random() * 2 + 1) * multiplier);
+        return { type: 'gems', amount: gemsGained, xp: xpGained, emoji: '💎', name: 'Кристаллы' };
+    } else {
+        // 15% — Ивентовая херня (Секретный чип)
+        const eventGained = 1;
+        return { type: 'eventChips', amount: eventGained, xp: xpGained, emoji: '👾', name: 'Чип Ивента' };
+    }
+}
+
+// Расчет уровней на основе XP (Каждый уровень требует на 300 XP больше)
+function checkLevelUp() {
+    let xpNeeded = userAccount.lvl * 300;
+    while (userAccount.xp >= xpNeeded) {
+        userAccount.xp -= xpNeeded;
+        userAccount.lvl++;
+        xpNeeded = userAccount.lvl * 300;
+        alert(`🎉 СУПЕР! Ты повысил свой уровень! Теперь твой уровень: ${userAccount.lvl}`);
+    }
+}
+
+// ==========================================
+// ИГРОВОЙ ЦИКЛ
 // ==========================================
 
-// Клик по кнопке ИГРАТЬ в главном меню
+// Клик по кнопке играть
 btnPlay.addEventListener('click', () => {
-    if (energy <= 0) {
-        alert("У тебя кончилась энергия!⚡ Попытки восстанавливаются каждый час.");
+    if (userAccount.energy <= 0) {
+        alert("Недостаточно энергии! ⚡ Попытки восстанавливаются автоматически.");
         return;
     }
+
+    userAccount.energy--;
     
-    // Снимаем энергию, сбрасываем показатели сессии
-    energy--;
-    currentLoot = 0;
+    // Очищаем рюкзак
+    currentRucksack.xp = 0;
+    currentRucksack.gold = 0;
+    currentRucksack.gems = 0;
+    currentRucksack.eventChips = 0;
     roomStep = 1;
-    
-    saveGameState();
+
+    saveData();
     updateUI();
-    resetDoors(); // Возвращаем дверям закрытый вид 🚪
-    
-    // Переключаем экраны
+    resetDoors();
+
     mainMenu.classList.add('hidden');
     gameScreen.classList.remove('hidden');
 });
 
-// Логика выбора дверей (Та самая рулетка 1/3)
+// Выбор двери (1/3 шанс подорваться)
 doors.forEach(door => {
     door.addEventListener('click', () => {
-        // Если кликать временно нельзя (идет анимация) — игнорируем
         if (!canClickDoor) return;
         canClickDoor = false;
 
-        // Генерируем ловушку: случайное число от 0 до 2
         const deathDoor = Math.floor(Math.random() * 3);
-        const clickedDoorId = parseInt(door.getAttribute('data-id'));
+        const clickedId = parseInt(door.getAttribute('data-id'));
 
-        // Анимация «приоткрытия» двери перед показом оверлея
-        door.style.transform = "scale(0.9) rotateY(90deg)";
-        door.style.transition = "transform 0.3s ease";
+        // Анимация раскрытия двери
+        door.style.transform = "scale(0.85) rotateY(90deg)";
+        door.style.transition = "transform 0.25s ease";
 
         setTimeout(() => {
-            if (clickedDoorId === deathDoor) {
-                // ИГРОК ВЗОРВАЛСЯ
+            if (clickedId === deathDoor) {
+                // СМЕРТЬ: Весь рюкзак сгорает
                 isDeadInThisRoom = true;
-                currentLoot = 0; // Обнуляем всё накопленное за рейд
-                
-                door.innerText = '💥'; // Дверь превращается во взрыв
-                
+                currentRucksack.xp = 0;
+                currentRucksack.gold = 0;
+                currentRucksack.gems = 0;
+                currentRucksack.eventChips = 0;
+
+                door.innerText = '💥';
                 resultEmoji.innerText = '💀';
-                resultText.innerText = `БАЗЗЗ! На комнате ${roomStep} ты наткнулся на мину. Весь куш сгорел!`;
+                resultText.innerText = `МИНА! Ты взорвался в комнате №${roomStep}.\nВсе собранные ресурсы уничтожены!`;
                 btnContinue.innerText = "В МЕНЮ";
             } else {
-                // ИГРОК УГАДАЛ И ВЫЖИЛ
+                // ВЫЖИЛ: Начисляем лут в рюкзак
                 isDeadInThisRoom = false;
-                
-                // Считаем награду: базовая сумма уровня + случайный бонус
-                const baseLoot = lootPool[Math.min(roomStep - 1, lootPool.length - 1)];
-                const reward = baseLoot + Math.floor(Math.random() * (roomStep * 10));
-                
-                currentLoot += reward;
+                const reward = getRoomReward();
+
+                currentRucksack.xp += reward.xp;
+                currentRucksack[reward.type] += reward.amount;
                 roomStep++;
-                
-                const randomEmoji = emojiPool[Math.floor(Math.random() * emojiPool.length)];
-                door.innerText = randomEmoji; // Дверь показывает лут
-                
-                resultEmoji.innerText = randomEmoji;
-                resultText.innerText = `Чисто! За дверью было пусто. Ты забираешь +${reward} очков!`;
-                btnContinue.innerText = `ИДТИ В КОМНАТУ ${roomStep}`;
+
+                door.innerText = reward.emoji;
+                resultEmoji.innerText = reward.emoji;
+                resultText.innerText = `БЕЗОПАСНО!\nТы нашел: +${reward.amount} ${reward.name}\nБонус опыта: +${reward.xp} XP`;
+                btnContinue.innerText = `В КОМНАТУ ${roomStep}`;
             }
 
-            // Через полсекунды после открытия двери выкатываем финальный экран
             setTimeout(() => {
                 resultOverlay.classList.remove('hidden');
-            }, 500);
+            }, 400);
 
-        }, 300); // Тайминг разворота двери
+        }, 250);
     });
 });
 
-// Кнопка ДАЛЬШЕ на всплывающем окне
+// Кнопка продолжения на всплывающем окне результатов
 btnContinue.addEventListener('click', () => {
     resultOverlay.classList.add('hidden');
-    resetDoors(); // Возвращаем дверям исходный вид
-    canClickDoor = true; // Разрешаем кликать снова
+    resetDoors();
+    canClickDoor = true;
 
     if (isDeadInThisRoom) {
-        // Если подорвался — пинком отправляем в главное меню
         gameScreen.classList.add('hidden');
         mainMenu.classList.remove('hidden');
     }
     updateUI();
 });
 
-// Кнопка ЗАБРАТЬ БАНК (Фиксация прибыли)
+// Кнопка "ЗАБРАТЬ БАНК"
 btnCashout.addEventListener('click', () => {
-    if (currentLoot === 0) {
-        alert("Ты еще ничего не выиграл в этом рейде! Выбери хотя бы одну дверь.");
+    if (currentRucksack.xp === 0 && currentRucksack.gold === 0 && currentRucksack.gems === 0) {
+        alert("Рюкзак пуст! Пройди хотя бы одну комнату.");
         return;
     }
-    
-    alert(`💸 Отличная интуиция! Ты вовремя остановился и забрал ${currentLoot} очков.`);
-    
-    // Здесь будет логика сохранения очков на постоянный баланс аккаунта
-    currentLoot = 0;
-    
+
+    // Переносим всё из рюкзака в сейф профиля
+    userAccount.xp += currentRucksack.xp;
+    userAccount.gold += currentRucksack.gold;
+    userAccount.gems += currentRucksack.gems;
+    userAccount.eventChips += currentRucksack.eventChips;
+
+    // Проверяем левелап от полученного опыта
+    checkLevelUp();
+
+    alert(`💸 Сейф заперт! На базу доставлено:\n🌟 Опыт: +${currentRucksack.xp} XP\n💰 Монеты: +${currentRucksack.gold}\n💎 Кристаллы: +${currentRucksack.gems}\n👾 Ивент-чипы: +${currentRucksack.eventChips}`);
+
+    currentRucksack.xp = 0;
+    currentRucksack.gold = 0;
+    currentRucksack.gems = 0;
+    currentRucksack.eventChips = 0;
+
+    saveData();
+
     gameScreen.classList.add('hidden');
     mainMenu.classList.remove('hidden');
     updateUI();
 });
 
 // ==========================================
-// 4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ИНТЕРФЕЙС И КЛАУД СЕЙВ
 // ==========================================
 
-// Сброс визуального состояния дверей к дефолту
+function updateUI() {
+    // Вывод в меню
+    accLvlEl.innerText = userAccount.lvl;
+    accXpEl.innerText = userAccount.xp;
+    accGoldEl.innerText = userAccount.gold;
+    accGemsEl.innerText = userAccount.gems;
+    accEventEl.innerText = userAccount.eventChips;
+
+    // Вывод в игре
+    energyEl.innerText = userAccount.energy;
+    roomEl.innerText = roomStep;
+    lootSummaryEl.innerText = `✨${currentRucksack.xp} XP | 💰${currentRucksack.gold} | 💎${currentRucksack.gems} | 👾${currentRucksack.eventChips}`;
+}
+
 function resetDoors() {
     doors.forEach(door => {
         door.innerText = '🚪';
@@ -158,31 +235,41 @@ function resetDoors() {
     });
 }
 
-// Обновление цифр на интерфейсе
-function updateUI() {
-    energyEl.innerText = energy;
-    lootEl.innerText = currentLoot;
-    roomEl.innerText = roomStep;
+function saveData() {
+    const dataStr = JSON.stringify(userAccount);
+    localStorage.setItem('roulette_save_v2', dataStr);
+
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage) {
+        window.Telegram.WebApp.CloudStorage.setItem('user_save_v2', dataStr, (err) => {
+            if (err) console.error("Ошибка сохранения в облако TG", err);
+        });
+    }
 }
 
-// Сохранение энергии в память, чтобы не скидывалась при перезапуске WebApp
-function saveGameState() {
-    localStorage.setItem('tg_casino_energy', energy);
+function loadData() {
+    const localData = localStorage.getItem('roulette_save_v2');
+    if (localData) {
+        userAccount = JSON.parse(localData);
+        updateUI();
+    }
+
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage) {
+        window.Telegram.WebApp.CloudStorage.getItem('user_save_v2', (err, value) => {
+            if (!err && value) {
+                userAccount = JSON.parse(value);
+                updateUI();
+            }
+        });
+    }
 }
 
-// Загрузка сохраненной энергии
-if(localStorage.getItem('tg_casino_energy') !== null) {
-    energy = parseInt(localStorage.getItem('tg_casino_energy'));
-}
-
-// Регенерация энергии: +1 энергия каждые 60 минут (макс 7)
+// Восстановление энергии (+1 каждые 60 минут, лимит 7)
 setInterval(() => {
-    if (energy < 7) {
-        energy++;
-        saveGameState();
+    if (userAccount.energy < 7) {
+        userAccount.energy++;
+        saveData();
         updateUI();
     }
 }, 3600000);
 
-// Первичный запуск отрисовки данных
-updateUI();
+loadData();
