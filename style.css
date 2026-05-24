@@ -3,13 +3,15 @@
     margin: 0;
     padding: 0;
     user-select: none;
+    -webkit-user-select: none; /* Защита от выделения текста на iOS */
+    -webkit-tap-highlight-color: transparent; /* Убираем синий синяк при тапе на телефонах */
 }
 
 body, html {
     width: 100%;
     height: 100%;
     background: radial-gradient(circle, #1a0b2e 0%, #080314 100%);
-    font-family: 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #fff;
     overflow: hidden;
 }
@@ -19,151 +21,142 @@ body, html {
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: space-between; /* Элементы растягиваются от верха до низа экрана */
     align-items: center;
     position: absolute;
-    transition: opacity 0.3s ease;
+    padding: 40px 20px; /* Отступы от краев экрана телефона */
 }
 
 .hidden {
     display: none !important;
-    opacity: 0;
 }
 
 /* ГЛАВНОЕ МЕНЮ */
 .game-title {
-    font-size: 48px;
+    font-size: 38px;
+    text-align: center;
     color: #00ffff;
-    text-shadow: 0 0 20px #00ffff, 0 0 40px #ff00ff;
-    margin-bottom: 60px;
-    letter-spacing: 4px;
-}
-
-.menu-layout {
-    display: flex;
-    align-items: center;
-    gap: 40px;
-}
-
-.side-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.btn-side {
-    background: #120626;
-    border: 2px solid #3d166d;
-    color: #8c72b0;
-    padding: 12px 24px;
-    font-size: 16px;
-    border-radius: 8px;
-    cursor: not-allowed;
-    opacity: 0.6;
+    text-shadow: 0 0 15px #00ffff, 0 0 30px #ff00ff;
+    margin-top: 20px;
+    line-height: 1.2;
+    letter-spacing: 2px;
 }
 
 .btn-main {
     background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%);
     border: none;
     color: #fff;
-    padding: 24px 60px;
-    font-size: 28px;
+    width: 100%;
+    max-width: 280px;
+    padding: 20px;
+    font-size: 24px;
     font-weight: bold;
-    border-radius: 50px;
+    border-radius: 25px;
     cursor: pointer;
-    box-shadow: 0 0 25px rgba(0, 255, 255, 0.4);
-    transition: transform 0.1s, box-shadow 0.3s;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+    transform: translateZ(0); /* Оптимизация анимации на мобилках */
 }
 
-.btn-main:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 35px rgba(255, 0, 255, 0.6);
+.menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Ровная сетка 2 на 2 */
+    gap: 12px;
+    width: 100%;
+    max-width: 320px;
+    margin-bottom: 20px;
+}
+
+.btn-side {
+    background: #120626;
+    border: 1px solid #3d166d;
+    color: #8c72b0;
+    padding: 15px;
+    font-size: 15px;
+    border-radius: 12px;
+    opacity: 0.5;
 }
 
 /* ИГРОВОЙ ЭКРАН */
 .game-header {
     display: flex;
-    gap: 40px;
-    margin-bottom: 60px;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 340px;
     background: rgba(255, 255, 255, 0.05);
-    padding: 15px 30px;
+    padding: 12px 20px;
     border-radius: 15px;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .stat {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: bold;
 }
 
-#energy-val { color: #ffea00; }
-#current-loot { color: #00ff66; }
-
 .doors-container {
     display: flex;
-    gap: 30px;
-    margin-bottom: 60px;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 360px;
 }
 
 .door {
-    font-size: 80px;
+    font-size: 45px;
     background: #1f0d3d;
-    border: 3px solid #00ffff;
-    border-radius: 15px;
-    width: 140px;
-    height: 200px;
+    border: 2px solid #00ffff;
+    border-radius: 16px;
+    flex: 1; /* Двери адаптивно делят ширину экрана */
+    height: 140px;
     display: flex;
     justify-content: center;
     align-items: center;
-    cursor: pointer;
-    box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
-    transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
-}
-
-.door:hover {
-    transform: translateY(-10px);
-    background: #2d1454;
-    box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
 }
 
 .btn-action {
     background: #00ff66;
     color: #000;
     border: none;
-    padding: 15px 40px;
+    width: 100%;
+    min-width: 260px;
+    padding: 18px;
     font-size: 18px;
     font-weight: bold;
-    border-radius: 10px;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(0, 255, 102, 0.4);
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 255, 102, 0.3);
 }
 
-/* ЭКРАН ОВЕРЛЕЯ (РЕЗУЛЬТАТ) */
+/* ОВЕРЛЕЙ РЕЗУЛЬТАТА */
 .overlay {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(5, 3, 15, 0.95);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 10;
+    padding: 20px;
 }
 
 .overlay-content {
     background: #120626;
     border: 2px solid #ff00ff;
-    padding: 40px 60px;
-    border-radius: 20px;
+    padding: 30px 20px;
+    border-radius: 24px;
     text-align: center;
-    box-shadow: 0 0 40px rgba(255, 0, 255, 0.3);
+    width: 100%;
+    max-width: 300px;
+    box-shadow: 0 0 30px rgba(255, 0, 255, 0.2);
 }
 
 .result-big-emoji {
-    font-size: 100px;
-    margin-bottom: 20px;
+    font-size: 70px;
+    margin-bottom: 15px;
 }
 
 #result-text {
-    font-size: 24px;
-    margin-bottom: 30px;
+    font-size: 18px;
+    margin-bottom: 25px;
+    line-height: 1.4;
 }

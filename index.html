@@ -2,38 +2,41 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cyber Roulette: 1/3</title>
+    <!-- Запрещаем зум экрана на телефонах, чтобы игра не прыгала при тапах -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyber Roulette</title>
+    
+    <!-- Официальный скрипт Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- ЭКРАН 1: ГЛАВНОЕ МЕНЮ -->
+    <!-- ЭКРАН 1: ГЛАВНОЕ МЕНЮ (Вертикальное под мобилку) -->
     <div id="main-menu" class="screen">
-        <h1 class="game-title">CYBER ROULETTE</h1>
-        <div class="menu-layout">
-            <div class="side-buttons left">
-                <button class="btn-side" disabled>🎁 Ивенты</button>
-                <button class="btn-side" disabled>🏆 Топ</button>
-            </div>
-            
-            <button id="btn-play" class="btn-main">ИГРАТЬ</button>
-            
-            <div class="side-buttons right">
-                <button class="btn-side" disabled>🛒 Магазин</button>
-                <button class="btn-side" disabled>🎭 Скины</button>
-            </div>
+        <h1 class="game-title">CYBER<br>ROULETTE</h1>
+        
+        <button id="btn-play" class="btn-main">ИГРАТЬ</button>
+        
+        <!-- Кнопки теперь снизу в сетку 2х2, удобно кликать одной рукой -->
+        <div class="menu-grid">
+            <button class="btn-side" disabled>🎁 Ивенты</button>
+            <button class="btn-side" disabled>🏆 Топ</button>
+            <button class="btn-side" disabled>🛒 Магазин</button>
+            <button class="btn-side" disabled>🎭 Скины</button>
         </div>
     </div>
 
     <!-- ЭКРАН 2: ИГРОВОЙ ПРОЦЕСС -->
     <div id="game-screen" class="screen hidden">
         <div class="game-header">
-            <div class="stat">⚡ Энергия: <span id="energy-val">7</span>/7</div>
-            <div class="stat">💰 Текущий куш: <span id="current-loot">0</span></div>
-            <div class="stat">🚪 Комната: <span id="room-step">1</span></div>
+            <div class="stat">⚡ <span id="energy-val">7</span>/7</div>
+            <div class="stat">💰 <span id="current-loot">0</span></div>
+            <div class="stat">🚪 Кмн: <span id="room-step">1</span></div>
         </div>
 
+        <!-- Двери теперь стоят в ряд, крупные, чтобы легко попадать пальцем -->
         <div class="doors-container">
             <div class="door" data-id="0">🚪</div>
             <div class="door" data-id="1">🚪</div>
@@ -41,11 +44,11 @@
         </div>
 
         <div class="game-controls">
-            <button id="btn-cashout" class="btn-action">💰 ЗАБРАТЬ БАНК 💰</button>
+            <button id="btn-cashout" class="btn-action">💰 ЗАБРАТЬ БАНК</button>
         </div>
     </div>
 
-    <!-- ЭКРАН ОВЕРЛЕЙ: РЕЗУЛЬТАТ ДВЕРИ (Смерть или Лут) -->
+    <!-- ЭКРАН ОВЕРЛЕЙ: РЕЗУЛЬТАТ ДВЕРИ -->
     <div id="result-overlay" class="overlay hidden">
         <div class="overlay-content">
             <div id="result-emoji" class="result-big-emoji">💰</div>
