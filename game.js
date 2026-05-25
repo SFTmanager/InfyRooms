@@ -1,14 +1,145 @@
-// Безопасная инициализация Telegram WebApp
-let tg = null;
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+
+import { 
+    getAuth, 
+    onAuthStateChanged, 
+    signOut 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+import { 
+    getFirestore, 
+    doc, 
+    onSnapshot, 
+    collection, 
+    query, 
+    where, 
+    orderBy, 
+    limit, 
+    getDocs, 
+    getDoc, 
+    runTransaction, 
+    updateDoc, 
+    addDoc, 
+    setDoc,          
+    serverTimestamp,  
+    increment,
+    arrayUnion
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// --- КОНФИГУРАЦИЯ SFT-V2 ---
+const firebaseConfig = {
+    apiKey: "AIzaSyCB6U9js8IMNaQm3cGpR9W-KfJTLVVS85A",
+    authDomain: "sft-v2.firebaseapp.com",
+    projectId: "sft-v2",
+    storageBucket: "sft-v2.appspot.com",
+    messagingSenderId: "246083377922",
+    appId: "1:246083377922:web:0cba7bfdd8733f9f75401b"
+};
+
+// Инициализация сервисов
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// 1. Получаем ID пользователя из Telegram WebApp
+let telegramUserId = "test_player_sft"; 
+
 if (window.Telegram && window.Telegram.WebApp) {
-    tg = window.Telegram.WebApp;
+    const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
+    
+    if (tg.initDataUnsafe?.user) {
+        telegramUserId = String(tg.initDataUnsafe.user.id);
+    }
 }
 
-// Ждем полной загрузки HTML-страницы, чтобы скрипт точно увидел кнопку ИГРАТЬ
-document.addEventListener("DOMContentLoaded", () => {
+// 2. Ссылка на документ юзера в Firestore
+const userDocRef = doc(db, "users", telegramUserId);
+
+// Глобальный объект профиля
+let userAccount = null;
+
+// ДЕФОЛТНЫЙ ПРОФИЛЬ (Без левелов и ивентов, как ты и просил)
+const defaultProfile = {
+    xp: 0,
+    gold: 0,
+    gems: 0,
+    energy: 7,
+    lastEnergyUpdate: Date.now()
+};
+
+// Глобальная ссылка на функцию обновления UI, чтобы handleUserLogin видел её
+let updateUI = null;
+
+// Функция сохранения в Firebase Firestore
+async function saveData() {
+    if (!userAccount) return;
+    try {
+        userAccount.lastEnergyUpdate = Date.now();
+        await setDoc(userDocRef, userAccount, { merge: true });
+        console.log("Прогресс успешно сохранен в Firestore!");
+    } catch (error) {
+        console.error("Ошибка сохранения в Firestore:", error);
+    }
+}
+
+// Проверка и загрузка при входе
+async function handleUserLogin() {
+    try {
+        const docSnap = await getDoc(userDocRef);
+
+        if (docSnap.exists()) {
+            userAccount = docSnap.data();
+            console.log("Игрок найден в базе! Данные успешно загружены:", userAccount);
+            calculateOfflineEnergy();
+        } else {
+            console.log("Новый игрок! Регистрируем в Firestore...");
+            userAccount = { ...defaultProfile };
+            await setDoc(userDocRef, userAccount);
+        }
+
+        if (typeof updateUI === "function") {
+            updateUI();
+        }
+
+    } catch (error) {
+        console.error("Ошибка при авторизации игрока:", error);
+        userAccount = { ...defaultProfile };
+        if (typeof updateUI === "function") {
+            updateUI();
+        }
+    }
+}
+
+// Расчет оффлайн-энергии
+function calculateOfflineEnergy() {
+    if (!userAccount) return;
+    if (userAccount.energy >= 7) return;
+
+    const now = Date.now();
+    const lastUpdate = userAccount.lastEnergyUpdate || now;
+    const msPassed = now - lastUpdate;
     
+    // 1 час = 3 600 000 миллисекунд
+    const energyPerHour = 3600000; 
+    const energyToRecover = Math.floor(msPassed / energyPerHour);
+
+    if (energyToRecover > 0) {
+        // Добавляем энергию, но не больше лимита (7)
+        const oldEnergy = userAccount.energy;
+        userAccount.energy = Math.min(7, userAccount.energy + energyToRecover);
+        
+        // Передвигаем метку времени вперед ровно на столько часов, сколько восстановили
+        userAccount.lastEnergyUpdate = lastUpdate + (energyToRecover * energyPerHour);
+        
+        console.log(`⏳ Пока тебя не было, восстановилось энергии: +${userAccount.energy - oldEnergy}`);
+        saveData();
+    }
+}
+
+// Ждем загрузки DOM
+document.addEventListener("DOMContentLoaded", () => {
     // Экраны
     const mainMenu = document.getElementById('main-menu');
     const gameScreen = document.getElementById('game-screen');
@@ -20,12 +151,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnContinue = document.getElementById('btn-continue');
     const doors = document.querySelectorAll('.door');
 
-    // Элементы аккаунта в меню
-    const accLvlEl = document.getElementById('account-lvl');
+    // Элементы аккаунта в меню (Оставили только нужные)
     const accXpEl = document.getElementById('account-xp');
     const accGoldEl = document.getElementById('account-gold');
     const accGemsEl = document.getElementById('account-gems');
-    const accEventEl = document.getElementById('account-event');
 
     // Элементы рейда на игровом экране
     const energyEl = document.getElementById('energy-val');
@@ -34,24 +163,30 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultEmoji = document.getElementById('result-emoji');
     const resultText = document.getElementById('result-text');
 
-    // Глобальный профиль игрока по умолчанию
-    let userAccount = {
-        lvl: 1,
-        xp: 0,
-        gold: 0,
-        gems: 0,
-        eventChips: 0,
-        energy: 7
-    };
+    // Переписываем глобальную функцию отрисовки интерфейса
+    updateUI = function() {
+        if (!userAccount) return; 
 
-    // Текущий рюкзак рейда
+        if (accXpEl) accXpEl.innerText = userAccount.xp;
+        if (accGoldEl) accGoldEl.innerText = userAccount.gold;
+        if (accGemsEl) accGemsEl.innerText = userAccount.gems;
+
+        if (energyEl) energyEl.innerText = userAccount.energy;
+        if (roomEl) roomEl.innerText = roomStep;
+        if (lootSummaryEl) {
+            lootSummaryEl.innerText = `✨${currentRucksack.xp} XP | 💰${currentRucksack.gold} | 💎${currentRucksack.gems}`;
+        }
+    }
+
+    // Запускаем авторизацию, так как UI готов к приему данных
+    handleUserLogin();
+
+    // Текущий рюкзак игры
     let currentRucksack = {
         xp: 0,
         gold: 0,
-        gems: 0,
-        eventChips: 0
+        gems: 0
     };
-
     let roomStep = 1;
     let isDeadInThisRoom = false;
     let canClickDoor = true;
@@ -65,31 +200,24 @@ document.addEventListener("DOMContentLoaded", () => {
         if (chance < 0.60) {
             const goldGained = Math.floor((Math.random() * 80 + 40) * multiplier);
             return { type: 'gold', amount: goldGained, xp: xpGained, emoji: '💰', name: 'Монеты' };
-        } else if (chance < 0.85) {
+        } else {
             const gemsGained = Math.floor((Math.random() * 2 + 1) * multiplier);
             return { type: 'gems', amount: gemsGained, xp: xpGained, emoji: '💎', name: 'Кристаллы' };
-        } else {
-            const eventGained = 1;
-            return { type: 'eventChips', amount: eventGained, xp: xpGained, emoji: '👾', name: 'Чип Ивента' };
-        }
-    }
-
-    function checkLevelUp() {
-        let xpNeeded = userAccount.lvl * 300;
-        while (userAccount.xp >= xpNeeded) {
-            userAccount.xp -= xpNeeded;
-            userAccount.lvl++;
-            xpNeeded = userAccount.lvl * 300;
-            alert(`🎉 СУПЕР! Твой уровень повышен до: ${userAccount.lvl}`);
         }
     }
 
     // Клик по кнопке играть
     if (btnPlay) {
         btnPlay.addEventListener('click', () => {
+            if (!userAccount) return;
             if (userAccount.energy <= 0) {
                 alert("Недостаточно энергии! ⚡");
                 return;
+            }
+
+            // ЕСЛИ энергия была полной, фиксируем время начала регенерации прямо сейчас!
+            if (userAccount.energy === 7) {
+                userAccount.lastEnergyUpdate = Date.now();
             }
 
             userAccount.energy--;
@@ -97,7 +225,6 @@ document.addEventListener("DOMContentLoaded", () => {
             currentRucksack.xp = 0;
             currentRucksack.gold = 0;
             currentRucksack.gems = 0;
-            currentRucksack.eventChips = 0;
             roomStep = 1;
 
             saveData();
@@ -111,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Выбор двери
+    // Логика дверей
     doors.forEach(door => {
         door.addEventListener('click', () => {
             if (!canClickDoor) return;
@@ -129,12 +256,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     currentRucksack.xp = 0;
                     currentRucksack.gold = 0;
                     currentRucksack.gems = 0;
-                    currentRucksack.eventChips = 0;
 
                     door.innerText = '💥';
-                    resultEmoji.innerText = '💀';
-                    resultText.innerText = `МИНА! Ты взорвался в комнате №${roomStep}.\nВсе ресурсы потеряны!`;
-                    btnContinue.innerText = "В МЕНЮ";
+                    if (resultEmoji) resultEmoji.innerText = '💀';
+                    if (resultText) resultText.innerText = `МИНА! Ты взорвался в комнате №${roomStep}.\nВсе ресурсы потеряны!`;
+                    if (btnContinue) btnContinue.innerText = "В МЕНЮ";
                 } else {
                     isDeadInThisRoom = false;
                     const reward = getRoomReward();
@@ -144,9 +270,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     roomStep++;
 
                     door.innerText = reward.emoji;
-                    resultEmoji.innerText = reward.emoji;
-                    resultText.innerText = `БЕЗОПАСНО!\nТы нашел: +${reward.amount} ${reward.name}\nОпыт: +${reward.xp} XP`;
-                    btnContinue.innerText = `В КОМНАТУ ${roomStep}`;
+                    if (resultEmoji) resultEmoji.innerText = reward.emoji;
+                    if (resultText) resultText.innerText = `БЕЗОПАСНО!\nТы нашел: +${reward.amount} ${reward.name}\nОпыт: +${reward.xp} XP`;
+                    if (btnContinue) btnContinue.innerText = `В КОМНАТУ ${roomStep}`;
                 }
 
                 setTimeout(() => {
@@ -172,44 +298,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (btnCashout) {
-        btnCashout.addEventListener('click', () => {
+        btnCashout.addEventListener('click', async () => {
+            if (!userAccount) return;
             if (currentRucksack.xp === 0 && currentRucksack.gold === 0 && currentRucksack.gems === 0) {
                 alert("Рюкзак пуст! Пройди хотя бы одну комнату.");
                 return;
             }
 
+            // Добавляем лут в профиль
             userAccount.xp += currentRucksack.xp;
             userAccount.gold += currentRucksack.gold;
             userAccount.gems += currentRucksack.gems;
-            userAccount.eventChips += currentRucksack.eventChips;
-
-            checkLevelUp();
 
             alert(`💸 Успешный побег! Забрано:\n🌟 Опыт: +${currentRucksack.xp} XP\n💰 Монеты: +${currentRucksack.gold}\n💎 Кристаллы: +${currentRucksack.gems}`);
 
             currentRucksack.xp = 0;
             currentRucksack.gold = 0;
             currentRucksack.gems = 0;
-            currentRucksack.eventChips = 0;
 
-            saveData();
+            // Ждем сохранения в облако Firestore
+            await saveData();
 
             if (gameScreen) gameScreen.classList.add('hidden');
             if (mainMenu) mainMenu.classList.remove('hidden');
             updateUI();
         });
-    }
-
-    function updateUI() {
-        if(accLvlEl) accLvlEl.innerText = userAccount.lvl;
-        if(accXpEl) accXpEl.innerText = userAccount.xp;
-        if(accGoldEl) accGoldEl.innerText = userAccount.gold;
-        if(accGemsEl) accGemsEl.innerText = userAccount.gems;
-        if(accEventEl) accEventEl.innerText = userAccount.eventChips;
-
-        if(energyEl) energyEl.innerText = userAccount.energy;
-        if(roomEl) roomEl.innerText = roomStep;
-        if(lootSummaryEl) lootSummaryEl.innerText = `✨${currentRucksack.xp} XP | 💰${currentRucksack.gold} | 💎${currentRucksack.gems} | 👾${currentRucksack.eventChips}`;
     }
 
     function resetDoors() {
@@ -218,50 +331,26 @@ document.addEventListener("DOMContentLoaded", () => {
             door.style.transform = "none";
         });
     }
-
-    function saveData() {
-        const dataStr = JSON.stringify(userAccount);
-        localStorage.setItem('roulette_save_v2', dataStr);
-
-        // Безопасное сохранение в Облако ТГ, только если оно реально доступно
-        if (tg && tg.CloudStorage) {
-            try {
-                tg.CloudStorage.setItem('user_save_v2', dataStr, (err) => {
-                    if (err) console.error("Ошибка CloudStorage:", err);
-                });
-            } catch(e) { console.log("ТГ Облако недоступно в этом браузере"); }
-        }
-    }
-
-    function loadData() {
-        const localData = localStorage.getItem('roulette_save_v2');
-        if (localData) {
-            userAccount = JSON.parse(localData);
-        }
-
-        // Пытаемся взять из ТГ облака
-        if (tg && tg.CloudStorage) {
-            try {
-                tg.CloudStorage.getItem('user_save_v2', (err, value) => {
-                    if (!err && value) {
-                        userAccount = JSON.parse(value);
-                        updateUI();
-                    }
-                });
-            } catch(e) { console.log("ТГ Облако недоступно"); }
-        }
-        updateUI();
-    }
-
-    // Регенерация энергии
     setInterval(() => {
-        if (userAccount.energy < 7) {
+        if (!userAccount) return;
+
+        // Если энергия полная, постоянно двигаем таймер за собой, чтобы регенерация начиналась ровно в момент траты
+        if (userAccount.energy >= 7) {
+            userAccount.lastEnergyUpdate = Date.now();
+            return;
+        }
+
+        const now = Date.now();
+        const energyPerHour = 3600000;
+
+        // Если с момента последнего обновления прошел 1 час или больше
+        if (now - userAccount.lastEnergyUpdate >= energyPerHour) {
             userAccount.energy++;
+            userAccount.lastEnergyUpdate += energyPerHour; // Сдвигаем счетчик ровно на час вперед
+            
+            console.log("⚡ Энергия восстановилась на 1 ед. во время игры!");
             saveData();
             updateUI();
         }
-    }, 3600000);
-
-    // Первичная загрузка при старте
-    loadData();
+    }, 60000); // 60000 мс = 1 минута
 });
