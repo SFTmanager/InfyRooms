@@ -42,8 +42,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app); // Подключаем Firestore для infyrooms
+
 // 1. Получаем ID пользователя из Telegram WebApp
-let telegramUserId = "test_player_sft"; 
+let telegramUserId = "test_player_infy"; 
 
 if (window.Telegram && window.Telegram.WebApp) {
     const tg = window.Telegram.WebApp;
@@ -92,24 +93,23 @@ async function handleUserLogin() {
 
         if (docSnap.exists()) {
             userAccount = docSnap.data();
-            console.log("Игрок найден в базе! Данные успешно загружены:", userAccount);
             calculateOfflineEnergy();
         } else {
-            console.log("Новый игрок! Регистрируем в Firestore...");
             userAccount = { ...defaultProfile };
             await setDoc(userDocRef, userAccount);
+            // Если всё ок, телефон выдаст это окно:
+            alert("Успешная регистрация в Firestore!"); 
         }
 
-        if (typeof updateUI === "function") {
-            updateUI();
-        }
+        if (typeof updateUI === "function") { updateUI(); }
 
     } catch (error) {
-        console.error("Ошибка при авторизации игрока:", error);
+        // ВОТ СЮДА ДОБАВЛЯЕМ ALERT
+        // Если база закрыта или есть баг, ты увидишь точный текст ошибки при входе
+        alert("КРИТИЧЕСКАЯ ОШИБКА БАЗЫ: " + error.message); 
+        
         userAccount = { ...defaultProfile };
-        if (typeof updateUI === "function") {
-            updateUI();
-        }
+        if (typeof updateUI === "function") { updateUI(); }
     }
 }
 
