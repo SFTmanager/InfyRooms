@@ -23,9 +23,10 @@ const db = getFirestore(app);
 let userAccount = null;
 let userDocRef = null;
 
-// ДЕФОЛТНЫЙ ПРОФИЛЬ (Добавлено поле telegram_id)
+// ДЕФОЛТНЫЙ ПРОФИЛЬ
 const defaultProfile = {
     telegram_id: "",
+    username: "Unknown",
     xp: 0,
     gold: 0,
     gems: 0,
@@ -50,6 +51,7 @@ async function saveData() {
 async function handleUserLogin() {
     try {
         let telegramUserId = "test_player_infy"; 
+        let telegramUsername = "LocalHost";
 
         if (window.Telegram && window.Telegram.WebApp) {
             const tg = window.Telegram.WebApp;
@@ -58,6 +60,8 @@ async function handleUserLogin() {
             
             if (tg.initDataUnsafe?.user) {
                 telegramUserId = String(tg.initDataUnsafe.user.id);
+                // Забираем username, если он настроен в ТГ (без знака @, его добавим при выводе)
+                telegramUsername = tg.initDataUnsafe.user.username || "No Username";
             }
         }
 
@@ -67,18 +71,22 @@ async function handleUserLogin() {
         if (docSnap.exists()) {
             userAccount = docSnap.data();
             
-            // Если у старого пользователя в базе ещё нет поля telegram_id, добавляем его при входе
-            if (!userAccount.telegram_id) {
-                userAccount.telegram_id = telegramUserId;
+            // Если у старого игрока нет полей ID или Username, либо имя изменилось — обновляем в базе
+            let needUpdate = false;
+            if (!userAccount.telegram_id) { userAccount.telegram_id = telegramUserId; needUpdate = true; }
+            if (userAccount.username !== telegramUsername) { userAccount.username = telegramUsername; needUpdate = true; }
+            
+            if (needUpdate) {
                 await saveData();
             }
             
             calculateOfflineEnergy();
         } else {
-            // Для нового пользователя генерируем профиль и сразу вшиваем строку telegram_id
+            // Для нового игрока создаем профиль со всеми данными
             userAccount = { 
                 ...defaultProfile,
-                telegram_id: telegramUserId 
+                telegram_id: telegramUserId,
+                username: telegramUsername
             };
             await setDoc(userDocRef, userAccount);
         }
@@ -89,7 +97,7 @@ async function handleUserLogin() {
 
     } catch (error) {
         console.error("FIREBASE CRITICAL ERROR:", error.message);
-        userAccount = { ...defaultProfile, telegram_id: "error_fallback" };
+        userAccount = { ...defaultProfile, telegram_id: "error", username: "Error" };
         if (typeof updateUI === "function") {
             updateUI();
         }
@@ -127,6 +135,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnContinue = document.getElementById('btn-continue');
     const doors = document.querySelectorAll('.door');
 
+    // Переменные для новых полей на экране
+    const accIdEl = document.getElementById('account-id');
+    const accUsernameEl = document.getElementById('account-username');
+
     const accXpEl = document.getElementById('account-xp');
     const accGoldEl = document.getElementById('account-gold');
     const accGemsEl = document.getElementById('account-gems');
@@ -145,6 +157,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // Синхронизация данных с версткой
     updateUI = function() {
         if (!userAccount) return; 
+
+        // Выводим ID и Username (если это юзернейм, подставляем красивую @)
+        if (accIdEl) accIdEl.innerText = userAccount.telegram_id;
+        if (accUsernameEl) {
+            accUsernameEl.innerText = userAccount.username === "No Username" || userAccount.username === "LocalHost"
+                ? userAccount.username 
+                : "@" + userAccount.username;
+        }
 
         if (accXpEl) accXpEl.innerText = userAccount.xp;
         if (accGoldEl) accGoldEl.innerText = userAccount.gold;
@@ -176,9 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnPlay) {
         btnPlay.addEventListener('click', () => {
             if (!userAccount) return;
-            if (userAccount.energy <= 0) {
-                return;
-            }
+            if (userAccount.energy <= 0) return;
 
             if (userAccount.energy === 7) {
                 userAccount.lastEnergyUpdate = Date.now();
@@ -263,9 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnCashout) {
         btnCashout.addEventListener('click', async () => {
             if (!userAccount) return;
-            if (currentRucksack.xp === 0 && currentRucksack.gold === 0 && currentRucksack.gems === 0) {
-                return;
-            }
+            if (currentRucksack.xp === 0 && currentRucksack.gold === 0 && currentRucksack.gems === 0) return;
 
             userAccount.xp += currentRucksack.xp;
             userAccount.gold += currentRucksack.gold;
@@ -290,7 +306,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Онлайн проверка регенерации каждую минуту
     setInterval(() => {
         if (!userAccount) return;
 
