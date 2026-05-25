@@ -325,32 +325,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }, 60000);
     // Эффект манящих частиц из двери
-    const pContainer = document.getElementById('particles-container');
-    if (pContainer) {
-        setInterval(() => {
-            const particle = document.createElement('div');
-            particle.classList.add('particle');
-            
-            // Случайный размер искры
-            const size = Math.random() * 4 + 3;
-            // Координаты вылета: смещаем на 15px вправо (в щель приоткрытой двери)
-            particle.style.left = 'calc(50% + 15px)';
-            particle.style.top = '50%';
-            
-            // Разлетаются красивым веером на игрока
-            const destinationX = (Math.random() - 0.3) * 140; // чуть больше вправо
-            const destinationY = -(Math.random() * 100 + 30); // летят вверх
-            // Задаем случайное направление вылета (вверх-влево или вверх-вправо)
-            const destinationX = (Math.random() - 0.5) * 120; // влево/вправо
-            const destinationY = -(Math.random() * 80 + 40);  // строго вверх
-            
-            particle.style.setProperty('--x', `${destinationX}px`);
-            particle.style.setProperty('--y', `${destinationY}px`);
-            
-            pContainer.appendChild(particle);
-            
-            // Удаляем элемент после завершения анимации
-            setTimeout(() => particle.remove(), 1500);
-        }, 200); // Частота появления искр (каждые 0.2 сек)
-    }
 });
