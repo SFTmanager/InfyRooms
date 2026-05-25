@@ -259,36 +259,56 @@ body, html {
     display: flex;
     justify-content: center;
     align-items: center;
+    width: 100%;
     height: 100%;
-    min-height: 160px;
-    perspective: 1000px; /* Для 3D эффекта */
+    min-height: 180px;
+    margin: 0 auto;
+    perspective: 1000px; /* Включаем 3D-пространство */
+}
+
+/* Свечение из щели за дверью */
+.door-light-glow {
+    position: absolute;
+    width: 60px;
+    height: 110px;
+    background: radial-gradient(circle, rgba(0, 255, 255, 0.8) 0%, rgba(255, 0, 255, 0) 70%);
+    z-index: 1;
+    pointer-events: none;
+    filter: blur(5px);
+    animation: glowPulse 2s infinite ease-in-out;
 }
 
 .lobby-door {
-    font-size: 80px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2;
+}
+
+/* Сама иконка двери с эффектом "приоткрытости" */
+.door-icon {
+    display: block;
+    font-size: 90px; /* Делаем её ОГРОМНОЙ и заметной */
+    line-height: 1;
     cursor: pointer;
-    filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.6));
-    transform: rotateY(-20deg); /* Эффект приоткрытой двери */
-    transform-style: preserve-3d;
-    transition: filter 0.3s ease, transform 0.3s ease;
-    animation: doorPulse 2s infinite ease-in-out;
+    transform-origin: left center; /* Петли двери "слева", чтобы она открывалась внутрь */
+    transform: rotateY(-35deg) translateZ(10px); /* Поворот в 3D! */
+    filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.9));
+    transition: transform 0.3s ease, filter 0.3s ease;
 }
 
-.lobby-door:hover {
-    transform: rotateY(-35deg) scale(1.05);
-    filter: drop-shadow(0 0 25px rgba(255, 0, 255, 0.8));
-}
-
-@keyframes doorPulse {
-    0%, 100% { filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.5)); }
-    50% { filter: drop-shadow(0 0 25px rgba(0, 255, 255, 0.9)); }
+/* Эффект при наведении или нажатии */
+.door-icon:hover {
+    transform: rotateY(-50deg) scale(1.03) translateZ(15px); /* Приоткрывается ещё сильнее */
+    filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.4));
 }
 
 /* Контейнер для вылетающих искр */
 .particles-container {
     position: absolute;
     width: 100px;
-    height: 100px;
+    height: 140px;
+    z-index: 3;
     pointer-events: none;
 }
 
@@ -296,9 +316,15 @@ body, html {
     position: absolute;
     background: linear-gradient(135deg, #00ffff, #ff00ff);
     border-radius: 50%;
-    box-shadow: 0 0 8px #00ffff, 0 0 12px #ff00ff;
+    box-shadow: 0 0 6px #00ffff, 0 0 10px #ff00ff;
     opacity: 0;
-    animation: floatParticle 1.5s linear infinite;
+    animation: floatParticle 1.2s linear infinite;
+}
+
+/* Анимации */
+@keyframes glowPulse {
+    0%, 100% { opacity: 0.6; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.1); }
 }
 
 @keyframes floatParticle {
@@ -307,7 +333,6 @@ body, html {
         opacity: 1;
     }
     100% {
-        /* Разлетаются вверх, влево и вправо с постепенным исчезновением */
         transform: translate(var(--x), var(--y)) scale(0);
         opacity: 0;
     }

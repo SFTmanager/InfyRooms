@@ -333,13 +333,13 @@ document.addEventListener("DOMContentLoaded", () => {
             
             // Случайный размер искры
             const size = Math.random() * 4 + 3;
-            particle.style.width = `${size}px`;
-            particle.style.height = `${size}px`;
-            
-            // Начальная точка — центр двери
-            particle.style.left = '50%';
+            // Координаты вылета: смещаем на 15px вправо (в щель приоткрытой двери)
+            particle.style.left = 'calc(50% + 15px)';
             particle.style.top = '50%';
             
+            // Разлетаются красивым веером на игрока
+            const destinationX = (Math.random() - 0.3) * 140; // чуть больше вправо
+            const destinationY = -(Math.random() * 100 + 30); // летят вверх
             // Задаем случайное направление вылета (вверх-влево или вверх-вправо)
             const destinationX = (Math.random() - 0.5) * 120; // влево/вправо
             const destinationY = -(Math.random() * 80 + 40);  // строго вверх
