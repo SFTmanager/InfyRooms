@@ -1,10 +1,10 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
 
 import { 
     getAuth, 
     onAuthStateChanged, 
     signOut 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
 import { 
     getFirestore, 
@@ -24,23 +24,24 @@ import {
     serverTimestamp,  
     increment,
     arrayUnion
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
-// --- КОНФИГУРАЦИЯ SFT-V2 ---
+// --- НАСТОЯЩАЯ КОНФИГУРАЦИЯ INFYROOMS ---
 const firebaseConfig = {
-    apiKey: "AIzaSyCB6U9js8IMNaQm3cGpR9W-KfJTLVVS85A",
-    authDomain: "sft-v2.firebaseapp.com",
-    projectId: "sft-v2",
-    storageBucket: "sft-v2.appspot.com",
-    messagingSenderId: "246083377922",
-    appId: "1:246083377922:web:0cba7bfdd8733f9f75401b"
+    apiKey: "AIzaSyBjWcfCKWQzO1uZSwzI-ram9rwEzqRfBrs",
+    authDomain: "infyrooms-b0196.firebaseapp.com",
+    databaseURL: "https://infyrooms-b0196-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "infyrooms-b0196",
+    storageBucket: "infyrooms-b0196.firebasestorage.app",
+    messagingSenderId: "864579505879",
+    appId: "1:864579505879:web:9f934561001879f799ea92",
+    measurementId: "G-5ZCLKGWWMN"
 };
 
-// Инициализация сервисов
+// Инициализация сервисов под наш проект
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
-
+const db = getFirestore(app); // Подключаем Firestore для infyrooms
 // 1. Получаем ID пользователя из Telegram WebApp
 let telegramUserId = "test_player_sft"; 
 
