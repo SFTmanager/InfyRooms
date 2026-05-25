@@ -1,14 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
-import { 
-    getAuth 
-} from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
-
-import { 
-    getFirestore, doc, getDoc, setDoc          
-} from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
-
-// --- НАСТОЯЩАЯ КОНФИГУРАЦИЯ INFYROOMS ---
+// --- КОНФИГУРАЦИЯ INFYROOMS ---
 const firebaseConfig = {
     apiKey: "AIzaSyBjWcfCKWQzO1uZSwzI-ram9rwEzqRfBrs",
     authDomain: "infyrooms-b0196.firebaseapp.com",
@@ -20,17 +14,18 @@ const firebaseConfig = {
     measurementId: "G-5ZCLKGWWMN"
 };
 
-// Инициализация сервисов под наш проект
+// Инициализация Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Глобальные переменные профиля
+// Состояние профиля
 let userAccount = null;
 let userDocRef = null;
 
-// ДЕФОЛТНЫЙ ПРОФИЛЬ
+// ДЕФОЛТНЫЙ ПРОФИЛЬ (Добавлено поле telegram_id)
 const defaultProfile = {
+    telegram_id: "",
     xp: 0,
     gold: 0,
     gems: 0,
@@ -38,57 +33,53 @@ const defaultProfile = {
     lastEnergyUpdate: Date.now()
 };
 
-// Глобальная ссылка на функцию обновления UI
 let updateUI = null;
 
-// Функция сохранения в Firebase Firestore
+// Сохранение прогресса
 async function saveData() {
     if (!userDocRef || !userAccount) return;
     try {
         await setDoc(userDocRef, userAccount, { merge: true });
-        console.log("Прогресс успешно сохранен в Firestore!");
+        console.log("Progress saved to Firestore!");
     } catch (error) {
-        console.error("Ошибка сохранения в Firestore:", error);
+        console.error("Error saving data:", error);
     }
 }
 
-// Проверка и загрузка при входе
+// Авторизация и загрузка данных игрока
 async function handleUserLogin() {
     try {
         let telegramUserId = "test_player_infy"; 
 
-        // Проверяем, запущены ли мы внутри Телеграма
         if (window.Telegram && window.Telegram.WebApp) {
             const tg = window.Telegram.WebApp;
             tg.ready();
             tg.expand();
             
-            // Тестовый детальный вывод данных на экран телефона
-            const rawData = JSON.stringify(tg.initDataUnsafe);
-            alert("Telegram WebApp найден!\nСырые данные initDataUnsafe: " + rawData);
-
             if (tg.initDataUnsafe?.user) {
                 telegramUserId = String(tg.initDataUnsafe.user.id);
             }
-        } else {
-            alert("Внимание: Скрипт Телеграма не обнаружен в окне браузера. Включен дефолтный игрок.");
         }
 
-        alert("Итоговый ID, который отправлен в Firestore: " + telegramUserId);
-
-        // Настраиваем ссылку на документ на основе полученного ID
         userDocRef = doc(db, "users", telegramUserId);
-
-        // Получаем документ из базы
         const docSnap = await getDoc(userDocRef);
 
         if (docSnap.exists()) {
             userAccount = docSnap.data();
-            console.log("Игрок найден в базе! Данные загружены:", userAccount);
+            
+            // Если у старого пользователя в базе ещё нет поля telegram_id, добавляем его при входе
+            if (!userAccount.telegram_id) {
+                userAccount.telegram_id = telegramUserId;
+                await saveData();
+            }
+            
             calculateOfflineEnergy();
         } else {
-            console.log("Новый игрок! Регистрируем в Firestore...");
-            userAccount = { ...defaultProfile };
+            // Для нового пользователя генерируем профиль и сразу вшиваем строку telegram_id
+            userAccount = { 
+                ...defaultProfile,
+                telegram_id: telegramUserId 
+            };
             await setDoc(userDocRef, userAccount);
         }
 
@@ -97,15 +88,15 @@ async function handleUserLogin() {
         }
 
     } catch (error) {
-        alert("КРИТИЧЕСКАЯ ОШИБКА FIREBASE:\n" + error.message);
-        userAccount = { ...defaultProfile };
+        console.error("FIREBASE CRITICAL ERROR:", error.message);
+        userAccount = { ...defaultProfile, telegram_id: "error_fallback" };
         if (typeof updateUI === "function") {
             updateUI();
         }
     }
 }
 
-// Расчет оффлайн-энергии через таймстампы
+// Регенерация энергии (1 ед. в час)
 function calculateOfflineEnergy() {
     if (!userAccount) return;
     if (userAccount.energy >= 7) return;
@@ -114,69 +105,60 @@ function calculateOfflineEnergy() {
     const lastUpdate = userAccount.lastEnergyUpdate || now;
     const msPassed = now - lastUpdate;
     
-    const energyPerHour = 3600000; // 1 час в мс
+    const energyPerHour = 3600000; 
     const energyToRecover = Math.floor(msPassed / energyPerHour);
 
     if (energyToRecover > 0) {
         const oldEnergy = userAccount.energy;
         userAccount.energy = Math.min(7, userAccount.energy + energyToRecover);
         userAccount.lastEnergyUpdate = lastUpdate + (energyToRecover * energyPerHour);
-        
-        console.log(`⏳ Оффлайн регенерация энергии: +${userAccount.energy - oldEnergy}`);
         saveData();
     }
 }
 
-// Ждем загрузки DOM дерева интерфейса
+// Игровая логика
 document.addEventListener("DOMContentLoaded", () => {
-    // Экраны
     const mainMenu = document.getElementById('main-menu');
     const gameScreen = document.getElementById('game-screen');
     const resultOverlay = document.getElementById('result-overlay');
 
-    // Элементы управления
     const btnPlay = document.getElementById('btn-play');
     const btnCashout = document.getElementById('btn-cashout');
     const btnContinue = document.getElementById('btn-continue');
     const doors = document.querySelectorAll('.door');
 
-    // Элементы аккаунта в меню
     const accXpEl = document.getElementById('account-xp');
     const accGoldEl = document.getElementById('account-gold');
     const accGemsEl = document.getElementById('account-gems');
-
-    // Элементы рейда на игровом экране
     const energyEl = document.getElementById('energy-val');
+    
     const roomEl = document.getElementById('room-step');
     const lootSummaryEl = document.getElementById('loot-summary');
     const resultEmoji = document.getElementById('result-emoji');
     const resultText = document.getElementById('result-text');
 
-    // Текущий рюкзак сессии
     let currentRucksack = { xp: 0, gold: 0, gems: 0 };
     let roomStep = 1;
     let isDeadInThisRoom = false;
     let canClickDoor = true;
 
-    // Переписываем глобальную функцию отрисовки интерфейса
+    // Синхронизация данных с версткой
     updateUI = function() {
         if (!userAccount) return; 
 
         if (accXpEl) accXpEl.innerText = userAccount.xp;
         if (accGoldEl) accGoldEl.innerText = userAccount.gold;
         if (accGemsEl) accGemsEl.innerText = userAccount.gems;
-
         if (energyEl) energyEl.innerText = userAccount.energy;
+
         if (roomEl) roomEl.innerText = roomStep;
         if (lootSummaryEl) {
             lootSummaryEl.innerText = `✨${currentRucksack.xp} XP | 💰${currentRucksack.gold} | 💎${currentRucksack.gems}`;
         }
     }
 
-    // Запускаем авторизацию, когда UI полностью готов
     handleUserLogin();
 
-    // Генерация наград комнат
     function getRoomReward() {
         const chance = Math.random();
         const multiplier = 1 + (roomStep * 0.15); 
@@ -184,23 +166,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (chance < 0.60) {
             const goldGained = Math.floor((Math.random() * 80 + 40) * multiplier);
-            return { type: 'gold', amount: goldGained, xp: xpGained, emoji: '💰', name: 'Монеты' };
+            return { type: 'gold', amount: goldGained, xp: xpGained, emoji: '💰', name: 'Gold' };
         } else {
             const gemsGained = Math.floor((Math.random() * 2 + 1) * multiplier);
-            return { type: 'gems', amount: gemsGained, xp: xpGained, emoji: '💎', name: 'Кристаллы' };
+            return { type: 'gems', amount: gemsGained, xp: xpGained, emoji: '💎', name: 'Gems' };
         }
     }
 
-    // Клик по кнопке играть
     if (btnPlay) {
         btnPlay.addEventListener('click', () => {
             if (!userAccount) return;
             if (userAccount.energy <= 0) {
-                alert("Недостаточно энергии! ⚡");
                 return;
             }
 
-            // Начинаем отсчет регенерации, если тратим максимальную энергию
             if (userAccount.energy === 7) {
                 userAccount.lastEnergyUpdate = Date.now();
             }
@@ -223,7 +202,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Логика выбора дверей
     doors.forEach(door => {
         door.addEventListener('click', () => {
             if (!canClickDoor) return;
@@ -244,8 +222,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     door.innerText = '💥';
                     if (resultEmoji) resultEmoji.innerText = '💀';
-                    if (resultText) resultText.innerText = `МИНА! Ты взорвался в комнате №${roomStep}.\nВсе ресурсы потеряны!`;
-                    if (btnContinue) btnContinue.innerText = "В МЕНЮ";
+                    if (resultText) resultText.innerText = `BOOM! You exploded in room №${roomStep}.\nAll items lost!`;
+                    if (btnContinue) btnContinue.innerText = "To Menu";
                 } else {
                     isDeadInThisRoom = false;
                     const reward = getRoomReward();
@@ -256,8 +234,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     door.innerText = reward.emoji;
                     if (resultEmoji) resultEmoji.innerText = reward.emoji;
-                    if (resultText) resultText.innerText = `БЕЗОПАСНО!\nТы нашел: +${reward.amount} ${reward.name}\nОпыт: +${reward.xp} XP`;
-                    if (btnContinue) btnContinue.innerText = `В КОМНАТУ ${roomStep}`;
+                    if (resultText) resultText.innerText = `SAFE!\nYou found: +${reward.amount} ${reward.name}\nXP: +${reward.xp}`;
+                    if (btnContinue) btnContinue.innerText = `Enter Room ${roomStep}`;
                 }
 
                 setTimeout(() => {
@@ -286,15 +264,12 @@ document.addEventListener("DOMContentLoaded", () => {
         btnCashout.addEventListener('click', async () => {
             if (!userAccount) return;
             if (currentRucksack.xp === 0 && currentRucksack.gold === 0 && currentRucksack.gems === 0) {
-                alert("Рюкзак пуст! Пройди хотя бы одну комнату.");
                 return;
             }
 
             userAccount.xp += currentRucksack.xp;
             userAccount.gold += currentRucksack.gold;
             userAccount.gems += currentRucksack.gems;
-
-            alert(`💸 Успешный побег! Забрано:\n🌟 Опыт: +${currentRucksack.xp} XP\n💰 Монеты: +${currentRucksack.gold}\n💎 Кристаллы: +${currentRucksack.gems}`);
 
             currentRucksack.xp = 0;
             currentRucksack.gold = 0;
@@ -315,7 +290,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Фоновая регенерация энергии раз в час, пока игра на экране телефона
+    // Онлайн проверка регенерации каждую минуту
     setInterval(() => {
         if (!userAccount) return;
 
@@ -330,10 +305,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (now - userAccount.lastEnergyUpdate >= energyPerHour) {
             userAccount.energy++;
             userAccount.lastEnergyUpdate += energyPerHour;
-            
-            console.log("⚡ Энергия восстановилась на 1 ед. во время игры!");
             saveData();
             updateUI();
         }
-    }, 60000); // Проверка каждую минуту
+    }, 60000);
 });
