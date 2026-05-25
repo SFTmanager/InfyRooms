@@ -251,3 +251,64 @@ body, html {
     padding: 12px;
     font-size: 16px;
 }
+
+.lobby-door-wrapper {
+    grid-column: 2;
+    grid-row: 3;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    min-height: 160px;
+    perspective: 1000px; /* Для 3D эффекта */
+}
+
+.lobby-door {
+    font-size: 80px;
+    cursor: pointer;
+    filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.6));
+    transform: rotateY(-20deg); /* Эффект приоткрытой двери */
+    transform-style: preserve-3d;
+    transition: filter 0.3s ease, transform 0.3s ease;
+    animation: doorPulse 2s infinite ease-in-out;
+}
+
+.lobby-door:hover {
+    transform: rotateY(-35deg) scale(1.05);
+    filter: drop-shadow(0 0 25px rgba(255, 0, 255, 0.8));
+}
+
+@keyframes doorPulse {
+    0%, 100% { filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.5)); }
+    50% { filter: drop-shadow(0 0 25px rgba(0, 255, 255, 0.9)); }
+}
+
+/* Контейнер для вылетающих искр */
+.particles-container {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00ffff, 0 0 12px #ff00ff;
+    opacity: 0;
+    animation: floatParticle 1.5s linear infinite;
+}
+
+@keyframes floatParticle {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        /* Разлетаются вверх, влево и вправо с постепенным исчезновением */
+        transform: translate(var(--x), var(--y)) scale(0);
+        opacity: 0;
+    }
+}
