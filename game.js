@@ -38,31 +38,18 @@ const firebaseConfig = {
     measurementId: "G-5ZCLKGWWMN"
 };
 
-// Инициализация сервисов под наш проект
+// ... (тут твои импорты и firebaseConfig остаются без изменений) ...
+
+// Инициализация сервисов
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app); // Подключаем Firestore для infyrooms
+const db = getFirestore(app);
 
-// 1. Получаем ID пользователя из Telegram WebApp
-let telegramUserId = "test_player_infy"; 
-
-if (window.Telegram && window.Telegram.WebApp) {
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
-    
-    if (tg.initDataUnsafe?.user) {
-        telegramUserId = String(tg.initDataUnsafe.user.id);
-    }
-}
-
-// 2. Ссылка на документ юзера в Firestore
-const userDocRef = doc(db, "users", telegramUserId);
-
-// Глобальный объект профиля
+// Глобальный объект профиля и ссылка на документ (сначала null)
 let userAccount = null;
+let userDocRef = null;
 
-// ДЕФОЛТНЫЙ ПРОФИЛЬ (Без левелов и ивентов, как ты и просил)
+// ДЕФОЛТНЫЙ ПРОФИЛЬ
 const defaultProfile = {
     xp: 0,
     gold: 0,
@@ -71,14 +58,13 @@ const defaultProfile = {
     lastEnergyUpdate: Date.now()
 };
 
-// Глобальная ссылка на функцию обновления UI, чтобы handleUserLogin видел её
+// Глобальная ссылка на функцию обновления UI
 let updateUI = null;
 
 // Функция сохранения в Firebase Firestore
 async function saveData() {
-    if (!userAccount) return;
+    if (!userDocRef || !userAccount) return;
     try {
-        userAccount.lastEnergyUpdate = Date.now();
         await setDoc(userDocRef, userAccount, { merge: true });
         console.log("Прогресс успешно сохранен в Firestore!");
     } catch (error) {
@@ -86,33 +72,56 @@ async function saveData() {
     }
 }
 
-// Проверка и загрузка при входе
+// Проверка и загрузка при входе (Переработанная под летучий сбор ID)
 async function handleUserLogin() {
     try {
+        // 1. Собираем ID строго в момент вызова функции
+        let telegramUserId = "test_player_infy"; 
+
+        if (window.Telegram && window.Telegram.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            
+            if (tg.initDataUnsafe?.user) {
+                telegramUserId = String(tg.initDataUnsafe.user.id);
+            }
+        }
+
+        // Выведем на экран телефона, какой ID в итоге запрашивается (для теста)
+        // Как только увидишь цифры вместо test_player — эту строчку можно удалить
+        alert("Твой ID в игре: " + telegramUserId);
+
+        // 2. Настраиваем ссылку на документ
+        userDocRef = doc(db, "users", telegramUserId);
+
+        // 3. Стучимся в базу данных
         const docSnap = await getDoc(userDocRef);
 
         if (docSnap.exists()) {
             userAccount = docSnap.data();
+            console.log("Игрок найден в базе! Данные успешно загружены:", userAccount);
             calculateOfflineEnergy();
         } else {
+            console.log("Новый игрок! Регистрируем в Firestore...");
             userAccount = { ...defaultProfile };
             await setDoc(userDocRef, userAccount);
-            // Если всё ок, телефон выдаст это окно:
-            alert("Успешная регистрация в Firestore!"); 
         }
 
-        if (typeof updateUI === "function") { updateUI(); }
+        if (typeof updateUI === "function") {
+            updateUI();
+        }
 
     } catch (error) {
-        // ВОТ СЮДА ДОБАВЛЯЕМ ALERT
-        // Если база закрыта или есть баг, ты увидишь точный текст ошибки при входе
-        alert("КРИТИЧЕСКАЯ ОШИБКА БАЗЫ: " + error.message); 
-        
+        alert("Ошибка авторизации: " + error.message);
         userAccount = { ...defaultProfile };
-        if (typeof updateUI === "function") { updateUI(); }
+        if (typeof updateUI === "function") {
+            updateUI();
+        }
     }
 }
 
+// ... (дальше идет calculateOfflineEnergy() и весь остальной твой код без изменений) ...
 // Расчет оффлайн-энергии
 function calculateOfflineEnergy() {
     if (!userAccount) return;
