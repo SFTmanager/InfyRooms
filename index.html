@@ -5,31 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>InfyRooms</title>
     
-    <!-- ВАЖНО: Подключаем Telegram WebApp SDK в первую очередь -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    <link rel = "stylesheet" href = "style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- ГЛАВНОЕ МЕНЮ -->
     <div id="main-menu" class="screen">
-        <h2>🚪 InfyRooms</h2>
-        <div style="margin: 15px 0;">
-            🌟 Опыт: <span id="account-xp">0</span> | 
-            CNY: <span id="account-gold">0</span> | 
-            💎 Кристаллы: <span id="account-gems">0</span>
+        <div class="game-title">INFYROOMS</div>
+        
+        <div class="account-balance">
+            <div class="xp-bar-container">🌟 Опыт: <span id="account-xp">0</span></div>
+            <div class="currency-grid">
+                <span>💰 <span id="account-gold">0</span></span>
+                <span>💎 <span id="account-gems">0</span></span>
+            </div>
         </div>
-        <div style="font-size: 1.2rem; margin: 15px 0;">
-            ⚡ Энергия: <span id="energy-val">0</span> / 7
+
+        <div class="left-wing">
+            <button class="btn-side">Клан</button>
+            <button class="btn-side">Топ</button>
         </div>
-        <button id="btn-play">ИГРАТЬ</button>
+
+        <div class="right-grid">
+            <button class="btn-side">Склад</button>
+            <button class="btn-side">Квесты</button>
+        </div>
+
+        <button id="btn-play" class="btn-main">ИГРАТЬ</button>
     </div>
 
-    <!-- ИГРОВОЙ ЭКРАН -->
     <div id="game-screen" class="screen hidden">
-        <h3>Комната №<span id="room-step">1</span></h3>
-        <div id="loot-summary">✨0 XP | 💰0 | 💎0</div>
+        <div class="game-header">
+            <div class="stat-box">⚡ <span id="energy-val">0</span>/7</div>
+            <div class="stat-box rucksack">
+                <div class="rucksack-title">РЮКЗАК:</div>
+                <div id="loot-summary">✨0 | 💰0 | 💎0</div>
+            </div>
+            <div class="stat-box">🚪 Км: <span id="room-step">1</span></div>
+        </div>
         
         <div class="doors-container">
             <div class="door" data-id="0">🚪</div>
@@ -37,19 +51,17 @@
             <div class="door" data-id="2">🚪</div>
         </div>
 
-        <button id="btn-cashout">💸 ЗАБРАТЬ ЛУТ И СБЕЖАТЬ</button>
+        <button id="btn-cashout" class="btn-action">💸 СБЕЖАТЬ С ЛУТОМ</button>
     </div>
 
-    <!-- ОКНО РЕЗУЛЬТАТА КОМНАТЫ -->
     <div id="result-overlay" class="overlay hidden">
         <div class="overlay-content">
-            <div id="result-emoji" style="font-size: 4rem; margin-bottom: 10px;">🚪</div>
+            <div id="result-emoji" class="result-big-emoji">🚪</div>
             <p id="result-text">Текст результата</p>
-            <button id="btn-continue">ПРОДОЛЖИТЬ</button>
+            <button id="btn-continue" class="btn-main">ПРОДОЛЖИТЬ</button>
         </div>
     </div>
 
-    <!-- ВАЖНО: Скрипт игры подключается как type="module" -->
     <script type="module" src="game.js"></script>
 </body>
 </html>
