@@ -1,29 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
 
 import { 
-    getAuth, 
-    onAuthStateChanged, 
-    signOut 
+    getAuth 
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
 import { 
-    getFirestore, 
-    doc, 
-    onSnapshot, 
-    collection, 
-    query, 
-    where, 
-    orderBy, 
-    limit, 
-    getDocs, 
-    getDoc, 
-    runTransaction, 
-    updateDoc, 
-    addDoc, 
-    setDoc,          
-    serverTimestamp,  
-    increment,
-    arrayUnion
+    getFirestore, doc, getDoc, setDoc          
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
 // --- НАСТОЯЩАЯ КОНФИГУРАЦИЯ INFYROOMS ---
@@ -38,14 +20,12 @@ const firebaseConfig = {
     measurementId: "G-5ZCLKGWWMN"
 };
 
-// ... (тут твои импорты и firebaseConfig остаются без изменений) ...
-
-// Инициализация сервисов
+// Инициализация сервисов под наш проект
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Глобальный объект профиля и ссылка на документ (сначала null)
+// Глобальные переменные профиля
 let userAccount = null;
 let userDocRef = null;
 
@@ -72,35 +52,39 @@ async function saveData() {
     }
 }
 
-// Проверка и загрузка при входе (Переработанная под летучий сбор ID)
+// Проверка и загрузка при входе
 async function handleUserLogin() {
     try {
-        // 1. Собираем ID строго в момент вызова функции
         let telegramUserId = "test_player_infy"; 
 
+        // Проверяем, запущены ли мы внутри Телеграма
         if (window.Telegram && window.Telegram.WebApp) {
             const tg = window.Telegram.WebApp;
             tg.ready();
             tg.expand();
             
+            // Тестовый детальный вывод данных на экран телефона
+            const rawData = JSON.stringify(tg.initDataUnsafe);
+            alert("Telegram WebApp найден!\nСырые данные initDataUnsafe: " + rawData);
+
             if (tg.initDataUnsafe?.user) {
                 telegramUserId = String(tg.initDataUnsafe.user.id);
             }
+        } else {
+            alert("Внимание: Скрипт Телеграма не обнаружен в окне браузера. Включен дефолтный игрок.");
         }
 
-        // Выведем на экран телефона, какой ID в итоге запрашивается (для теста)
-        // Как только увидишь цифры вместо test_player — эту строчку можно удалить
-        alert("Твой ID в игре: " + telegramUserId);
+        alert("Итоговый ID, который отправлен в Firestore: " + telegramUserId);
 
-        // 2. Настраиваем ссылку на документ
+        // Настраиваем ссылку на документ на основе полученного ID
         userDocRef = doc(db, "users", telegramUserId);
 
-        // 3. Стучимся в базу данных
+        // Получаем документ из базы
         const docSnap = await getDoc(userDocRef);
 
         if (docSnap.exists()) {
             userAccount = docSnap.data();
-            console.log("Игрок найден в базе! Данные успешно загружены:", userAccount);
+            console.log("Игрок найден в базе! Данные загружены:", userAccount);
             calculateOfflineEnergy();
         } else {
             console.log("Новый игрок! Регистрируем в Firestore...");
@@ -113,7 +97,7 @@ async function handleUserLogin() {
         }
 
     } catch (error) {
-        alert("Ошибка авторизации: " + error.message);
+        alert("КРИТИЧЕСКАЯ ОШИБКА FIREBASE:\n" + error.message);
         userAccount = { ...defaultProfile };
         if (typeof updateUI === "function") {
             updateUI();
@@ -121,8 +105,7 @@ async function handleUserLogin() {
     }
 }
 
-// ... (дальше идет calculateOfflineEnergy() и весь остальной твой код без изменений) ...
-// Расчет оффлайн-энергии
+// Расчет оффлайн-энергии через таймстампы
 function calculateOfflineEnergy() {
     if (!userAccount) return;
     if (userAccount.energy >= 7) return;
@@ -131,24 +114,20 @@ function calculateOfflineEnergy() {
     const lastUpdate = userAccount.lastEnergyUpdate || now;
     const msPassed = now - lastUpdate;
     
-    // 1 час = 3 600 000 миллисекунд
-    const energyPerHour = 3600000; 
+    const energyPerHour = 3600000; // 1 час в мс
     const energyToRecover = Math.floor(msPassed / energyPerHour);
 
     if (energyToRecover > 0) {
-        // Добавляем энергию, но не больше лимита (7)
         const oldEnergy = userAccount.energy;
         userAccount.energy = Math.min(7, userAccount.energy + energyToRecover);
-        
-        // Передвигаем метку времени вперед ровно на столько часов, сколько восстановили
         userAccount.lastEnergyUpdate = lastUpdate + (energyToRecover * energyPerHour);
         
-        console.log(`⏳ Пока тебя не было, восстановилось энергии: +${userAccount.energy - oldEnergy}`);
+        console.log(`⏳ Оффлайн регенерация энергии: +${userAccount.energy - oldEnergy}`);
         saveData();
     }
 }
 
-// Ждем загрузки DOM
+// Ждем загрузки DOM дерева интерфейса
 document.addEventListener("DOMContentLoaded", () => {
     // Экраны
     const mainMenu = document.getElementById('main-menu');
@@ -161,7 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnContinue = document.getElementById('btn-continue');
     const doors = document.querySelectorAll('.door');
 
-    // Элементы аккаунта в меню (Оставили только нужные)
+    // Элементы аккаунта в меню
     const accXpEl = document.getElementById('account-xp');
     const accGoldEl = document.getElementById('account-gold');
     const accGemsEl = document.getElementById('account-gems');
@@ -172,6 +151,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const lootSummaryEl = document.getElementById('loot-summary');
     const resultEmoji = document.getElementById('result-emoji');
     const resultText = document.getElementById('result-text');
+
+    // Текущий рюкзак сессии
+    let currentRucksack = { xp: 0, gold: 0, gems: 0 };
+    let roomStep = 1;
+    let isDeadInThisRoom = false;
+    let canClickDoor = true;
 
     // Переписываем глобальную функцию отрисовки интерфейса
     updateUI = function() {
@@ -188,20 +173,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Запускаем авторизацию, так как UI готов к приему данных
+    // Запускаем авторизацию, когда UI полностью готов
     handleUserLogin();
 
-    // Текущий рюкзак игры
-    let currentRucksack = {
-        xp: 0,
-        gold: 0,
-        gems: 0
-    };
-    let roomStep = 1;
-    let isDeadInThisRoom = false;
-    let canClickDoor = true;
-
-    // Таблица дропа
+    // Генерация наград комнат
     function getRoomReward() {
         const chance = Math.random();
         const multiplier = 1 + (roomStep * 0.15); 
@@ -225,7 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // ЕСЛИ энергия была полной, фиксируем время начала регенерации прямо сейчас!
+            // Начинаем отсчет регенерации, если тратим максимальную энергию
             if (userAccount.energy === 7) {
                 userAccount.lastEnergyUpdate = Date.now();
             }
@@ -248,7 +223,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Логика дверей
+    // Логика выбора дверей
     doors.forEach(door => {
         door.addEventListener('click', () => {
             if (!canClickDoor) return;
@@ -315,7 +290,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Добавляем лут в профиль
             userAccount.xp += currentRucksack.xp;
             userAccount.gold += currentRucksack.gold;
             userAccount.gems += currentRucksack.gems;
@@ -326,7 +300,6 @@ document.addEventListener("DOMContentLoaded", () => {
             currentRucksack.gold = 0;
             currentRucksack.gems = 0;
 
-            // Ждем сохранения в облако Firestore
             await saveData();
 
             if (gameScreen) gameScreen.classList.add('hidden');
@@ -341,10 +314,11 @@ document.addEventListener("DOMContentLoaded", () => {
             door.style.transform = "none";
         });
     }
+
+    // Фоновая регенерация энергии раз в час, пока игра на экране телефона
     setInterval(() => {
         if (!userAccount) return;
 
-        // Если энергия полная, постоянно двигаем таймер за собой, чтобы регенерация начиналась ровно в момент траты
         if (userAccount.energy >= 7) {
             userAccount.lastEnergyUpdate = Date.now();
             return;
@@ -353,14 +327,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const now = Date.now();
         const energyPerHour = 3600000;
 
-        // Если с момента последнего обновления прошел 1 час или больше
         if (now - userAccount.lastEnergyUpdate >= energyPerHour) {
             userAccount.energy++;
-            userAccount.lastEnergyUpdate += energyPerHour; // Сдвигаем счетчик ровно на час вперед
+            userAccount.lastEnergyUpdate += energyPerHour;
             
             console.log("⚡ Энергия восстановилась на 1 ед. во время игры!");
             saveData();
             updateUI();
         }
-    }, 60000); // 60000 мс = 1 минута
+    }, 60000); // Проверка каждую минуту
 });
