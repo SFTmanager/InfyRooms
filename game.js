@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/fireba
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
-// --- КОНФИГУРАЦИЯ INFYROOMS ---
+// --- КОНФИГУРАЦИЯ FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyBjWcfCKWQzO1uZSwzI-ram9rwEzqRfBrs",
     authDomain: "infyrooms-b0196.firebaseapp.com",
@@ -14,40 +14,62 @@ const firebaseConfig = {
     measurementId: "G-5ZCLKGWWMN"
 };
 
-// Инициализация Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Состояние профиля
 let userAccount = null;
 let userDocRef = null;
 
-// ДЕФОЛТНЫЙ ПРОФИЛЬ
+// ==========================================
+// БАЗА ДАННЫХ СУЩЕСТВ И АРТЕФАКТОВ (ЛОРИКА)
+// ==========================================
+const ITEMS_DATABASE = {
+    "healer_card": { 
+        name: "Healer's Card", icon: "🃏", rarity: "common", chance: 0.50, price: 20, sailable: true,
+        desc: "The soul of an ancient doctor is inside. Whispers tips on how to survive."
+    },
+    "all_seeing_eye": { 
+        name: "All-Seeing Eye", icon: "👁️‍🗨️", rarity: "rare", chance: 0.38, price: 150, sailable: true,
+        desc: "Stares into the depths of reality. It can sense trap doors from a mile away."
+    },
+    "shadow_reaper": { 
+        name: "Shadow Reaper", icon: "👥", rarity: "legendary", chance: 0.10, price: 500, sailable: true,
+        desc: "A dark entity following your reflection. It feeds on the explosions you dodge."
+    },
+    // НОВОГОДНИЙ ИВЕНТ К СЛЕДУЮЩИМ ОБНОВЛЕНИЯМ
+    "killer_candy": { 
+        name: "Xmas Candy-Slayer", icon: "🍭", rarity: "rare", chance: 0.019, price: 300, sailable: true,
+        desc: "EVENT ITEM! This candy cane has sharp teeth. Do not put it in your pocket."
+    },
+    "santa_spirit": { 
+        name: "Spirit of Santa", icon: "🎅", rarity: "legendary", chance: 0.001, price: 1500, sailable: false,
+        desc: "MYTHICAL! The ultimate protector. The embodiment of Winter Magic."
+    }
+};
+
 const defaultProfile = {
     telegram_id: "",
     username: "Unknown",
-    xp: 0,
-    gold: 0,
-    gems: 0,
-    energy: 7,
-    lastEnergyUpdate: Date.now()
+    xp: 0, gold: 0, gems: 0, energy: 7,
+    lastEnergyUpdate: Date.now(),
+    inventory: [],
+    shopData: { lastRefresh: 0, currentItems: [] }
 };
 
 let updateUI = null;
 
-// Сохранение прогресса
 async function saveData() {
     if (!userDocRef || !userAccount) return;
     try {
         await setDoc(userDocRef, userAccount, { merge: true });
-        console.log("Progress saved to Firestore!");
+        console.log("Firestore progress synchronized.");
     } catch (error) {
-        console.error("Error saving data:", error);
+        console.error("Error saving progress:", error);
     }
 }
 
-// Авторизация и загрузка данных игрока
+// Авторизация и загрузка
 async function handleUserLogin() {
     try {
         let telegramUserId = "test_player_infy"; 
@@ -57,10 +79,8 @@ async function handleUserLogin() {
             const tg = window.Telegram.WebApp;
             tg.ready();
             tg.expand();
-            
             if (tg.initDataUnsafe?.user) {
                 telegramUserId = String(tg.initDataUnsafe.user.id);
-                // Забираем username, если он настроен в ТГ (без знака @, его добавим при выводе)
                 telegramUsername = tg.initDataUnsafe.user.username || "No Username";
             }
         }
@@ -71,79 +91,189 @@ async function handleUserLogin() {
         if (docSnap.exists()) {
             userAccount = docSnap.data();
             
-            // Если у старого игрока нет полей ID или Username, либо имя изменилось — обновляем в базе
-            let needUpdate = false;
-            if (!userAccount.telegram_id) { userAccount.telegram_id = telegramUserId; needUpdate = true; }
-            if (userAccount.username !== telegramUsername) { userAccount.username = telegramUsername; needUpdate = true; }
-            
-            if (needUpdate) {
-                await saveData();
-            }
+            if (!userAccount.telegram_id) userAccount.telegram_id = telegramUserId;
+            if (userAccount.username !== telegramUsername) userAccount.username = telegramUsername;
+            if (!userAccount.inventory) userAccount.inventory = [];
+            if (!userAccount.shopData) userAccount.shopData = { lastRefresh: 0, currentItems: [] };
             
             calculateOfflineEnergy();
+            checkAndRefreshShop();
         } else {
-            // Для нового игрока создаем профиль со всеми данными
-            userAccount = { 
-                ...defaultProfile,
-                telegram_id: telegramUserId,
-                username: telegramUsername
-            };
+            userAccount = { ...defaultProfile, telegram_id: telegramUserId, username: telegramUsername };
+            generateNewShopItems();
             await setDoc(userDocRef, userAccount);
         }
 
-        if (typeof updateUI === "function") {
-            updateUI();
-        }
+        if (typeof updateUI === "function") updateUI();
 
     } catch (error) {
-        console.error("FIREBASE CRITICAL ERROR:", error.message);
+        console.error("CRITICAL AUTH ERROR:", error.message);
         userAccount = { ...defaultProfile, telegram_id: "error", username: "Error" };
-        if (typeof updateUI === "function") {
-            updateUI();
-        }
+        if (typeof updateUI === "function") updateUI();
     }
 }
 
-// Регенерация энергии (1 ед. в час)
 function calculateOfflineEnergy() {
-    if (!userAccount) return;
-    if (userAccount.energy >= 7) return;
-
+    if (!userAccount || userAccount.energy >= 7) return;
     const now = Date.now();
     const lastUpdate = userAccount.lastEnergyUpdate || now;
     const msPassed = now - lastUpdate;
-    
-    const energyPerHour = 3600000; 
-    const energyToRecover = Math.floor(msPassed / energyPerHour);
+    const energyToRecover = Math.floor(msPassed / 3600000);
 
     if (energyToRecover > 0) {
-        const oldEnergy = userAccount.energy;
         userAccount.energy = Math.min(7, userAccount.energy + energyToRecover);
-        userAccount.lastEnergyUpdate = lastUpdate + (energyToRecover * energyPerHour);
+        userAccount.lastEnergyUpdate = lastUpdate + (energyToRecover * 3600000);
         saveData();
     }
 }
 
-// Игровая логика
+// Проверка и смена товаров в Customs раз в 24 часа
+function checkAndRefreshShop() {
+    if (!userAccount) return;
+    const now = Date.now();
+    if (now - userAccount.shopData.lastRefresh >= 86400000) {
+        generateNewShopItems();
+        saveData();
+    }
+}
+
+function generateNewShopItems() {
+    const chosenIds = [];
+    const itemIds = Object.keys(ITEMS_DATABASE);
+
+    for (let i = 0; i < 2; i++) { // Магазин предлагает 2 случайных слота за раз
+        let rand = Math.random();
+        let selectedId = itemIds[0];
+
+        for (const id of itemIds) {
+            if (rand < ITEMS_DATABASE[id].chance) {
+                selectedId = id;
+                break;
+            }
+            rand -= ITEMS_DATABASE[id].chance;
+        }
+        chosenIds.push(selectedId);
+    }
+    userAccount.shopData.currentItems = chosenIds;
+    userAccount.shopData.lastRefresh = Date.now();
+}
+
+// Вывод товаров в Customs Shop
+function renderShop() {
+    const container = document.getElementById('shop-items-container');
+    if (!container || !userAccount) return;
+    container.innerHTML = "";
+
+    userAccount.shopData.currentItems.forEach((itemId, index) => {
+        const item = ITEMS_DATABASE[itemId];
+        if (!item) return;
+
+        const card = document.createElement('div');
+        card.className = `item-card rarity-${item.rarity}`;
+        card.innerHTML = `
+            <div class="item-icon">${item.icon}</div>
+            <div class="item-name">${item.name}</div>
+            <div class="item-desc">"${item.desc}"</div>
+            <div class="item-price">💎 ${item.price}</div>
+            <button class="btn-buy" id="buy-btn-${index}">Summon</button>
+        `;
+        container.appendChild(card);
+
+        const buyBtn = document.getElementById(`buy-btn-${index}`);
+        if (userAccount.gems < item.price) {
+            buyBtn.disabled = true;
+            buyBtn.innerText = "No Gems";
+        }
+
+        buyBtn.addEventListener('click', async () => {
+            if (userAccount.gems >= item.price) {
+                userAccount.gems -= item.price;
+                userAccount.inventory.push(itemId);
+                await saveData();
+                updateUI();
+                renderShop();
+                alert(`You have summoned: ${item.name}!`);
+            }
+        });
+    });
+}
+
+// Вывод личного инвентаря
+function renderInventory() {
+    const container = document.getElementById('inventory-container');
+    if (!container || !userAccount) return;
+    container.innerHTML = "";
+
+    if (userAccount.inventory.length === 0) {
+        container.innerHTML = `<p style="color:#666; text-align:center; grid-column: 1/-1; padding-top:40px;">Your inventory is empty.<br>Go to Customs Shop to summon entities.</p>`;
+        return;
+    }
+
+    userAccount.inventory.forEach((itemId) => {
+        const item = ITEMS_DATABASE[itemId];
+        if (!item) return;
+
+        const card = document.createElement('div');
+        card.className = `item-card rarity-${item.rarity}`;
+        
+        const saleStatus = item.sailable 
+            ? `<span style="color:#00ffaa; font-size:11px;">📦 Market Tradable</span>` 
+            : `<span style="color:#ff4444; font-size:11px;">🔒 Soulbound</span>`;
+
+        card.innerHTML = `
+            <div class="item-icon">${item.icon}</div>
+            <div class="item-name">${item.name}</div>
+            <div class="item-desc">"${item.desc}"</div>
+            <div style="margin-top:auto; padding-top:5px; width:100%; border-top:1px solid rgba(255,255,255,0.05);">${saleStatus}</div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function updateShopTimer() {
+    const timerEl = document.getElementById('shop-timer');
+    if (!timerEl || !userAccount) return;
+
+    setInterval(() => {
+        const now = Date.now();
+        const diff = (userAccount.shopData.lastRefresh + 86400000) - now;
+
+        if (diff <= 0) {
+            checkAndRefreshShop();
+            renderShop();
+            return;
+        }
+
+        const hours = Math.floor(diff / 3600000).toString().padStart(2, '0');
+        const minutes = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+        const seconds = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+        timerEl.innerText = `${hours}:${minutes}:${seconds}`;
+    }, 1000);
+}
+
+// Игровой цикл и DOM события
 document.addEventListener("DOMContentLoaded", () => {
     const mainMenu = document.getElementById('main-menu');
     const gameScreen = document.getElementById('game-screen');
+    const customsScreen = document.getElementById('customs-screen');
+    const inventoryScreen = document.getElementById('inventory-screen');
     const resultOverlay = document.getElementById('result-overlay');
 
     const btnPlay = document.getElementById('btn-play');
     const btnCashout = document.getElementById('btn-cashout');
     const btnContinue = document.getElementById('btn-continue');
+    const btnCustoms = document.getElementById('btn-customs');
+    const btnInventory = document.getElementById('btn-inventory');
+    const btnCloseCustoms = document.getElementById('btn-close-customs');
+    const btnCloseInventory = document.getElementById('btn-close-inventory');
     const doors = document.querySelectorAll('.door');
 
-    // Переменные для новых полей на экране
     const accIdEl = document.getElementById('account-id');
     const accUsernameEl = document.getElementById('account-username');
-
     const accXpEl = document.getElementById('account-xp');
     const accGoldEl = document.getElementById('account-gold');
     const accGemsEl = document.getElementById('account-gems');
     const energyEl = document.getElementById('energy-val');
-    
     const roomEl = document.getElementById('room-step');
     const lootSummaryEl = document.getElementById('loot-summary');
     const resultEmoji = document.getElementById('result-emoji');
@@ -154,23 +284,17 @@ document.addEventListener("DOMContentLoaded", () => {
     let isDeadInThisRoom = false;
     let canClickDoor = true;
 
-    // Синхронизация данных с версткой
     updateUI = function() {
         if (!userAccount) return; 
-
-        // Выводим ID и Username (если это юзернейм, подставляем красивую @)
         if (accIdEl) accIdEl.innerText = userAccount.telegram_id;
         if (accUsernameEl) {
             accUsernameEl.innerText = userAccount.username === "No Username" || userAccount.username === "LocalHost"
-                ? userAccount.username 
-                : "@" + userAccount.username;
+                ? userAccount.username : "@" + userAccount.username;
         }
-
         if (accXpEl) accXpEl.innerText = userAccount.xp;
         if (accGoldEl) accGoldEl.innerText = userAccount.gold;
         if (accGemsEl) accGemsEl.innerText = userAccount.gems;
         if (energyEl) energyEl.innerText = userAccount.energy;
-
         if (roomEl) roomEl.innerText = roomStep;
         if (lootSummaryEl) {
             lootSummaryEl.innerText = `✨${currentRucksack.xp} XP | 💰${currentRucksack.gold} | 💎${currentRucksack.gems}`;
@@ -178,13 +302,41 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     handleUserLogin();
+    updateShopTimer();
 
+    // Переключение экранов интерфейса
+    if (btnCustoms) {
+        btnCustoms.addEventListener('click', () => {
+            mainMenu.classList.add('hidden');
+            customsScreen.classList.remove('hidden');
+            renderShop();
+        });
+    }
+    if (btnCloseCustoms) {
+        btnCloseCustoms.addEventListener('click', () => {
+            customsScreen.classList.add('hidden');
+            mainMenu.classList.remove('hidden');
+        });
+    }
+    if (btnInventory) {
+        btnInventory.addEventListener('click', () => {
+            mainMenu.classList.add('hidden');
+            inventoryScreen.classList.remove('hidden');
+            renderInventory();
+        });
+    }
+    if (btnCloseInventory) {
+        btnCloseInventory.addEventListener('click', () => {
+            inventoryScreen.classList.add('hidden');
+            mainMenu.classList.remove('hidden');
+        });
+    }
+
+    // Игровая сессия комнат
     function getRoomReward() {
-        const chance = Math.random();
         const multiplier = 1 + (roomStep * 0.15); 
         const xpGained = Math.floor((Math.random() * 10 + 5) * multiplier);
-
-        if (chance < 0.60) {
+        if (Math.random() < 0.60) {
             const goldGained = Math.floor((Math.random() * 80 + 40) * multiplier);
             return { type: 'gold', amount: goldGained, xp: xpGained, emoji: '💰', name: 'Gold' };
         } else {
@@ -195,28 +347,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (btnPlay) {
         btnPlay.addEventListener('click', () => {
-            if (!userAccount) return;
-            if (userAccount.energy <= 0) return;
-
-            if (userAccount.energy === 7) {
-                userAccount.lastEnergyUpdate = Date.now();
-            }
+            if (!userAccount || userAccount.energy <= 0) return;
+            if (userAccount.energy === 7) userAccount.lastEnergyUpdate = Date.now();
 
             userAccount.energy--;
-            
-            currentRucksack.xp = 0;
-            currentRucksack.gold = 0;
-            currentRucksack.gems = 0;
+            currentRucksack.xp = 0; currentRucksack.gold = 0; currentRucksack.gems = 0;
             roomStep = 1;
 
-            saveData();
-            updateUI();
-            resetDoors();
-
-            if (mainMenu && gameScreen) {
-                mainMenu.classList.add('hidden');
-                gameScreen.classList.remove('hidden');
-            }
+            saveData(); updateUI(); resetDoors();
+            mainMenu.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
         });
     }
 
@@ -234,10 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
             setTimeout(() => {
                 if (clickedId === deathDoor) {
                     isDeadInThisRoom = true;
-                    currentRucksack.xp = 0;
-                    currentRucksack.gold = 0;
-                    currentRucksack.gems = 0;
-
+                    currentRucksack.xp = 0; currentRucksack.gold = 0; currentRucksack.gems = 0;
                     door.innerText = '💥';
                     if (resultEmoji) resultEmoji.innerText = '💀';
                     if (resultText) resultText.innerText = `BOOM! You exploded in room №${roomStep}.\nAll items lost!`;
@@ -245,7 +382,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     isDeadInThisRoom = false;
                     const reward = getRoomReward();
-
                     currentRucksack.xp += reward.xp;
                     currentRucksack[reward.type] += reward.amount;
                     roomStep++;
@@ -255,11 +391,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (resultText) resultText.innerText = `SAFE!\nYou found: +${reward.amount} ${reward.name}\nXP: +${reward.xp}`;
                     if (btnContinue) btnContinue.innerText = `Enter Room ${roomStep}`;
                 }
-
-                setTimeout(() => {
-                    if (resultOverlay) resultOverlay.classList.remove('hidden');
-                }, 400);
-
+                setTimeout(() => { if (resultOverlay) resultOverlay.classList.remove('hidden'); }, 400);
             }, 250);
         });
     });
@@ -267,12 +399,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnContinue) {
         btnContinue.addEventListener('click', () => {
             if (resultOverlay) resultOverlay.classList.add('hidden');
-            resetDoors();
-            canClickDoor = true;
-
+            resetDoors(); canClickDoor = true;
             if (isDeadInThisRoom) {
-                if (gameScreen) gameScreen.classList.add('hidden');
-                if (mainMenu) mainMenu.classList.remove('hidden');
+                gameScreen.classList.add('hidden');
+                mainMenu.classList.remove('hidden');
             }
             updateUI();
         });
@@ -286,42 +416,28 @@ document.addEventListener("DOMContentLoaded", () => {
             userAccount.xp += currentRucksack.xp;
             userAccount.gold += currentRucksack.gold;
             userAccount.gems += currentRucksack.gems;
-
-            currentRucksack.xp = 0;
-            currentRucksack.gold = 0;
-            currentRucksack.gems = 0;
+            currentRucksack.xp = 0; currentRucksack.gold = 0; currentRucksack.gems = 0;
 
             await saveData();
-
-            if (gameScreen) gameScreen.classList.add('hidden');
-            if (mainMenu) mainMenu.classList.remove('hidden');
+            gameScreen.classList.add('hidden');
+            mainMenu.classList.remove('hidden');
             updateUI();
         });
     }
 
     function resetDoors() {
-        doors.forEach(door => {
-            door.innerText = '🚪';
-            door.style.transform = "none";
-        });
+        doors.forEach(door => { door.innerText = '🚪'; door.style.transform = "none"; });
     }
 
+    // Регенерация энергии в фоне
     setInterval(() => {
         if (!userAccount) return;
-
-        if (userAccount.energy >= 7) {
-            userAccount.lastEnergyUpdate = Date.now();
-            return;
-        }
-
+        if (userAccount.energy >= 7) { userAccount.lastEnergyUpdate = Date.now(); return; }
         const now = Date.now();
-        const energyPerHour = 3600000;
-
-        if (now - userAccount.lastEnergyUpdate >= energyPerHour) {
+        if (now - userAccount.lastEnergyUpdate >= 3600000) {
             userAccount.energy++;
-            userAccount.lastEnergyUpdate += energyPerHour;
-            saveData();
-            updateUI();
+            userAccount.lastEnergyUpdate += 3600000;
+            saveData(); updateUI();
         }
     }, 60000);
 });
