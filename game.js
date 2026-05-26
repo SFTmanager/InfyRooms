@@ -443,21 +443,41 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (btnCashout) {
-        btnCashout.addEventListener('click', async () => {
-            if (!userAccount) return;
-            if (currentRucksack.xp === 0 && currentRucksack.gold === 0 && currentRucksack.gems === 0) return;
+    btnCashout.addEventListener('click', async () => {
+        if (!userAccount) return;
+        
+        // Добавляем проверку на энергию: если вообще всё по нулям, то выходим
+        if (currentRucksack.xp === 0 && 
+            currentRucksack.gold === 0 && 
+            currentRucksack.gems === 0 && 
+            (!currentRucksack.energy || currentRucksack.energy === 0)) {
+            return;
+        }
 
-            userAccount.xp += currentRucksack.xp;
-            userAccount.gold += currentRucksack.gold;
-            userAccount.gems += currentRucksack.gems;
-            currentRucksack.xp = 0; currentRucksack.gold = 0; currentRucksack.gems = 0;
+        // Переносим награды на аккаунт
+        userAccount.xp += currentRucksack.xp;
+        userAccount.gold += currentRucksack.gold;
+        userAccount.gems += currentRucksack.gems;
+        
+        // Безопасно добавляем энергию, но не выше жесткого лимита в 7 единиц
+        if (currentRucksack.energy) {
+            userAccount.energy = Math.min(7, (userAccount.energy || 0) + currentRucksack.energy);
+        }
 
-            await saveData();
-            gameScreen.classList.add('hidden');
-            mainMenu.classList.remove('hidden');
-            updateUI();
-        });
-    }
+        // Полностью очищаем рюкзак (включая энергию)
+        currentRucksack.xp = 0; 
+        currentRucksack.gold = 0; 
+        currentRucksack.gems = 0;
+        currentRucksack.energy = 0; // Сбрасываем накопленную в забеге энергию
+
+        // Сохраняем в Firebase и обновляем экран
+        await saveData();
+        gameScreen.classList.add('hidden');
+        mainMenu.classList.remove('hidden');
+        updateUI();
+    });
+}
+
 
     function resetDoors() {
         doors.forEach(door => { door.innerText = '🚪'; door.style.transform = "none"; });
