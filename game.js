@@ -22,31 +22,29 @@ let userAccount = null;
 let userDocRef = null;
 
 // ==========================================
-// БАЗА ДАННЫХ СУЩЕСТВ И АРТЕФАКТОВ (ЛОРИКА)
+// БАЗА ДАННЫХ СУЩЕСТВ И АРТЕФАКТОВ
 // ==========================================
 const ITEMS_DATABASE = {
     "healer_card": { 
-        name: "Healer's Card", icon: "🃏", rarity: "common", chance: 0.50, price: 10, sailable: true,
+        name: "Healer's Card", icon: "🃏", rarity: "common", chance: 0.50, price: 20, sailable: true,
         desc: "The soul of an ancient doctor is inside. Whispers tips on how to survive."
     },
     "all_seeing_eye": { 
-        name: "All-Seeing Eye", icon: "👁️‍🗨️", 
-        rarity: "rare", 
-        chance: 0.38, 
-        price: 25, 
-        sailable: true,
+        name: "All-Seeing Eye", icon: "👁️‍🗨️", rarity: "rare", chance: 0.38, price: 150, sailable: true,
         desc: "Stares into the depths of reality. It can sense trap doors from a mile away."
     },
     "shadow_reaper": { 
-        name: "Shadow Reaper", 
-        icon: "👥", 
-        rarity: "legendary", 
-        chance: 0.10, 
-        price: 500, 
-        sailable: true,
+        name: "Shadow Reaper", icon: "👥", rarity: "legendary", chance: 0.10, price: 500, sailable: true,
         desc: "A dark entity following your reflection. It feeds on the explosions you dodge."
     },
-    // НОВОГОДНИЙ ИВЕНТ К СЛЕДУЮЩИМ ОБНОВЛЕНИЯМ
+    "killer_candy": { 
+        name: "Xmas Candy-Slayer", icon: "🍭", rarity: "rare", chance: 0.019, price: 300, sailable: true,
+        desc: "EVENT ITEM! This candy cane has sharp teeth. Do not put it in your pocket."
+    },
+    "santa_spirit": { 
+        name: "Spirit of Santa", icon: "🎅", rarity: "legendary", chance: 0.001, price: 1500, sailable: false,
+        desc: "MYTHICAL! The ultimate protector. The embodiment of Winter Magic."
+    }
 };
 
 const defaultProfile = {
@@ -70,7 +68,7 @@ async function saveData() {
     }
 }
 
-// Авторизация и загрузка
+// Авторизация и инициализация загрузки игрока
 async function handleUserLogin() {
     try {
         let telegramUserId = "test_player_infy"; 
@@ -128,13 +126,23 @@ function calculateOfflineEnergy() {
     }
 }
 
-// Проверка и смена товаров в Customs раз в 24 часа
-// Меняем функцию генерации — теперь создаем 4 товара
+// Логика жесткого обновления магазина (Проверяет разницу во времени на 100%)
+function checkAndRefreshShop() {
+    if (!userAccount) return;
+    const now = Date.now();
+    
+    if (now - userAccount.shopData.lastRefresh >= 86400000 || userAccount.shopData.currentItems.length === 0) {
+        generateNewShopItems();
+        saveData();
+    }
+}
+
+// Заполнение витрины на 4 случайных лота
 function generateNewShopItems() {
     const chosenIds = [];
     const itemIds = Object.keys(ITEMS_DATABASE);
 
-    for (let i = 0; i < 4; i++) { // Теперь 4 случайных слота!
+    for (let i = 0; i < 4; i++) { 
         let rand = Math.random();
         let selectedId = itemIds[0];
 
@@ -151,26 +159,14 @@ function generateNewShopItems() {
     userAccount.shopData.lastRefresh = Date.now();
 }
 
-// Проверка обновления — ТОЧНО обновится, так как мы проверяем разницу во времени
-function checkAndRefreshShop() {
-    if (!userAccount) return;
-    const now = Date.now();
-    
-    // Если прошло 24 часа (86400000 мс) или если витрина почему-то пустая
-    if (now - userAccount.shopData.lastRefresh >= 86400000 || userAccount.shopData.currentItems.length === 0) {
-        generateNewShopItems();
-        saveData(); // Жестко пушим в Firestore новые 4 товара
-    }
-}
-
-// Обновленный рендер магазина: вывод редкости + удаление после покупки
+// Отрисовка магазина с выводом Rarity и исчезновением при покупке
 function renderShop() {
     const container = document.getElementById('shop-items-container');
     if (!container || !userAccount) return;
     container.innerHTML = "";
 
     if (userAccount.shopData.currentItems.length === 0) {
-        container.innerHTML = `<p style="color:#666; text-align:center; grid-column: 1/-1; padding-top:20px;">All entities summoned!<br>Wait for the shop to restock.</p>`;
+        container.innerHTML = `<p style="color:#6c548a; text-align:center; grid-column: 1/-1; padding-top:40px; font-weight:bold;">All entities summoned!<br>Wait for the shop to restock.</p>`;
         return;
     }
 
@@ -178,7 +174,6 @@ function renderShop() {
         const item = ITEMS_DATABASE[itemId];
         if (!item) return;
 
-        // Превращаем первую букву редкости в заглавную для красоты (e.g. rare -> Rare)
         const rarityText = item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1);
 
         const card = document.createElement('div');
@@ -203,32 +198,30 @@ function renderShop() {
             if (userAccount.gems >= item.price) {
                 userAccount.gems -= item.price;
                 
-                // Добавляем в инвентарь
+                // Кладём предмет в инвентарь
                 userAccount.inventory.push(itemId);
                 
-                // ЭТОТ ПУНКТ: Удаляем именно этот товар из витрины магазина по его индексу
+                // Удаляем именно этот купленный слот из витрины магазина
                 userAccount.shopData.currentItems.splice(index, 1);
                 
-                // Синхронизируем с Firestore
                 await saveData();
-                
-                // Обновляем UI баланса и перерисовываем магазин (он покажет оставшиеся товары)
                 updateUI();
-                renderShop();
+                renderShop(); // Моментально перерисовываем
                 
                 alert(`You have summoned: ${item.name}!`);
             }
         });
     });
 }
-// Вывод личного инвентаря
+
+// Отрисовка инвентаря
 function renderInventory() {
     const container = document.getElementById('inventory-container');
     if (!container || !userAccount) return;
     container.innerHTML = "";
 
     if (userAccount.inventory.length === 0) {
-        container.innerHTML = `<p style="color:#666; text-align:center; grid-column: 1/-1; padding-top:40px;">Your inventory is empty.<br>Go to Customs Shop to summon entities.</p>`;
+        container.innerHTML = `<p style="color:#6c548a; text-align:center; grid-column: 1/-1; padding-top:40px; font-weight:bold;">Your inventory is empty.<br>Go to Customs Shop to summon entities.</p>`;
         return;
     }
 
@@ -236,16 +229,19 @@ function renderInventory() {
         const item = ITEMS_DATABASE[itemId];
         if (!item) return;
 
+        const rarityText = item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1);
+
         const card = document.createElement('div');
         card.className = `item-card rarity-${item.rarity}`;
         
         const saleStatus = item.sailable 
-            ? `<span style="color:#00ffaa; font-size:11px;">📦 Market Tradable</span>` 
-            : `<span style="color:#ff4444; font-size:11px;">🔒 Soulbound</span>`;
+            ? `<span style="color:#00ff66; font-size:11px;">📦 Market Tradable</span>` 
+            : `<span style="color:#ff00ff; font-size:11px;">🔒 Soulbound</span>`;
 
         card.innerHTML = `
             <div class="item-icon">${item.icon}</div>
             <div class="item-name">${item.name}</div>
+            <div class="rarity-badge">Rarity: ${rarityText}</div>
             <div class="item-desc">"${item.desc}"</div>
             <div style="margin-top:auto; padding-top:5px; width:100%; border-top:1px solid rgba(255,255,255,0.05);">${saleStatus}</div>
         `;
@@ -274,7 +270,7 @@ function updateShopTimer() {
     }, 1000);
 }
 
-// Игровой цикл и DOM события
+// Обработка кликов окон и игровой цикл комнат
 document.addEventListener("DOMContentLoaded", () => {
     const mainMenu = document.getElementById('main-menu');
     const gameScreen = document.getElementById('game-screen');
@@ -310,10 +306,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateUI = function() {
         if (!userAccount) return; 
         if (accIdEl) accIdEl.innerText = userAccount.telegram_id;
-        if (accUsernameEl) {
-            accUsernameEl.innerText = userAccount.username === "No Username" || userAccount.username === "LocalHost"
-                ? userAccount.username : "@" + userAccount.username;
-        }
+        if (accUsernameEl) accUsernameEl.innerText = userAccount.username;
         if (accXpEl) accXpEl.innerText = userAccount.xp;
         if (accGoldEl) accGoldEl.innerText = userAccount.gold;
         if (accGemsEl) accGemsEl.innerText = userAccount.gems;
@@ -327,7 +320,6 @@ document.addEventListener("DOMContentLoaded", () => {
     handleUserLogin();
     updateShopTimer();
 
-    // Переключение экранов интерфейса
     if (btnCustoms) {
         btnCustoms.addEventListener('click', () => {
             mainMenu.classList.add('hidden');
@@ -355,7 +347,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Игровая сессия комнат
     function getRoomReward() {
         const multiplier = 1 + (roomStep * 0.15); 
         const xpGained = Math.floor((Math.random() * 10 + 5) * multiplier);
@@ -452,7 +443,7 @@ document.addEventListener("DOMContentLoaded", () => {
         doors.forEach(door => { door.innerText = '🚪'; door.style.transform = "none"; });
     }
 
-    // Регенерация энергии в фоне
+    // Фоновая регенерация энергии
     setInterval(() => {
         if (!userAccount) return;
         if (userAccount.energy >= 7) { userAccount.lastEnergyUpdate = Date.now(); return; }
