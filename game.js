@@ -26,26 +26,27 @@ let userDocRef = null;
 // ==========================================
 const ITEMS_DATABASE = {
     "healer_card": { 
-        name: "Healer's Card", icon: "🃏", rarity: "common", chance: 0.50, price: 20, sailable: true,
+        name: "Healer's Card", icon: "🃏", rarity: "common", chance: 0.50, price: 10, sailable: true,
         desc: "The soul of an ancient doctor is inside. Whispers tips on how to survive."
     },
     "all_seeing_eye": { 
-        name: "All-Seeing Eye", icon: "👁️‍🗨️", rarity: "rare", chance: 0.38, price: 150, sailable: true,
+        name: "All-Seeing Eye", icon: "👁️‍🗨️", 
+        rarity: "rare", 
+        chance: 0.38, 
+        price: 25, 
+        sailable: true,
         desc: "Stares into the depths of reality. It can sense trap doors from a mile away."
     },
     "shadow_reaper": { 
-        name: "Shadow Reaper", icon: "👥", rarity: "legendary", chance: 0.10, price: 500, sailable: true,
+        name: "Shadow Reaper", 
+        icon: "👥", 
+        rarity: "legendary", 
+        chance: 0.10, 
+        price: 500, 
+        sailable: true,
         desc: "A dark entity following your reflection. It feeds on the explosions you dodge."
     },
     // НОВОГОДНИЙ ИВЕНТ К СЛЕДУЮЩИМ ОБНОВЛЕНИЯМ
-    "killer_candy": { 
-        name: "Xmas Candy-Slayer", icon: "🍭", rarity: "rare", chance: 0.019, price: 300, sailable: true,
-        desc: "EVENT ITEM! This candy cane has sharp teeth. Do not put it in your pocket."
-    },
-    "santa_spirit": { 
-        name: "Spirit of Santa", icon: "🎅", rarity: "legendary", chance: 0.001, price: 1500, sailable: false,
-        desc: "MYTHICAL! The ultimate protector. The embodiment of Winter Magic."
-    }
 };
 
 const defaultProfile = {
