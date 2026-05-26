@@ -218,7 +218,7 @@ body, html {
 }
 
 /* ==========================================
-   СЕТКИ ДЛЯ CUSTOMS И INVENTORY
+   СЕТКИ ДЛЯ CUSTOMS И INVENTORY (ИНТЕГРАЦИЯ)
    ========================================== */
 #customs-screen, #inventory-screen {
     grid-template-columns: 1fr;
@@ -237,7 +237,7 @@ body, html {
     padding-right: 4px;
 }
 
-/* Полоса прокрутки */
+/* Полоса прокрутки в стиле UI */
 .shop-grid::-webkit-scrollbar, .inventory-grid::-webkit-scrollbar {
     width: 4px;
 }
@@ -260,58 +260,39 @@ body, html {
     backdrop-filter: blur(4px);
 }
 
-/* Все 8 градаций редкости по твоим ценностям */
-.rarity-common { 
-    border-color: #554466; 
-    color: #ddd; 
+/* Градации редкости существ под неоновый стиль */
+/* Добавляем красивую плашку для текста редкости внутри карточки */
+.rarity-badge {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
 }
-.rarity-rare { 
-    border-color: #00ffff; 
-    color: #00ffff;
-    box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.15);
-}
-.rarity-epic { 
-    border-color: #9d00ff; 
-    color: #bc66ff;
-    box-shadow: inset 0 0 10px rgba(157, 0, 255, 0.2);
-}
-.rarity-mythic { 
-    border-color: #ff0055; 
-    color: #ff4081;
-    box-shadow: inset 0 0 12px rgba(255, 0, 85, 0.25);
-}
-.rarity-legendary { 
-    border-color: #ff00ff; 
-    color: #ff00ff;
-    box-shadow: inset 0 0 15px rgba(255, 0, 255, 0.2);
-    animation: neonPulse 2.5s infinite ease-in-out;
-}
-.rarity-imaginary { 
-    border-color: #00ffaa; 
-    color: #66ffcc;
-    border-style: dashed;
-    box-shadow: inset 0 0 15px rgba(0, 255, 170, 0.2);
-}
-.rarity-complex { 
-    border-color: #ffaa00; 
-    color: #ffcc66;
-    box-shadow: inset 0 0 20px rgba(255, 170, 0, 0.3);
-}
-.rarity-universal { 
-    border-color: #ffffff; 
-    color: #ffffff;
-    box-shadow: inset 0 0 25px rgba(255, 255, 255, 0.4), 0 0 15px #ffffff;
-    animation: universalGlow 2s infinite ease-in-out;
+/* Раскрасим текст редкости в зависимости от класса карточки */
+.rarity-common .rarity-badge { color: #b5a2cd; }
+.rarity-rare .rarity-badge { color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.4); }
+.rarity-legendary .rarity-badge { color: #ff00ff; text-shadow: 0 0 5px rgba(255,0,255,0.4); }
+
+/* Обновляем сетку магазина, чтобы свайп работал идеально */
+.shop-grid {
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    
+    /* Жестко ограничиваем высоту, чтобы нижняя кнопка "Back" не уезжала, а карточки скроллились */
+    height: 55vh; 
+    max-height: 55vh;
+    
+    overflow-y: scroll; /* Включаем вертикальный скролл */
+    -webkit-overflow-scrolling: touch; /* Плавный скролл (импульсный) на айфонах */
+    padding-bottom: 20px; /* Запас снизу, чтобы карточки не прилипали */
 }
 
-/* Анимации свечения */
 @keyframes neonPulse {
     0%, 100% { filter: drop-shadow(0 0 2px rgba(255,0,255,0.2)); }
     50% { filter: drop-shadow(0 0 8px rgba(255,0,255,0.6)); }
-}
-@keyframes universalGlow {
-    0%, 100% { filter: drop-shadow(0 0 4px rgba(255,255,255,0.4)); box-shadow: inset 0 0 15px rgba(255,255,255,0.2); }
-    50% { filter: drop-shadow(0 0 14px rgba(255,255,255,0.8)); box-shadow: inset 0 0 25px rgba(255,255,255,0.5); }
 }
 
 .item-icon { 
@@ -357,6 +338,7 @@ body, html {
     box-shadow: none;
 }
 
+/* Кнопки возврата из окон */
 #btn-close-customs, #btn-close-inventory {
     grid-row: 4;
     width: 100%;
