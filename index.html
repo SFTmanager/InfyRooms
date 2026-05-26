@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>InfyRooms</title>
-    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- ГЛАВНОЕ МЕНЮ -->
     <div id="main-menu" class="screen">
         <h1 class="game-title">INFYROOMS</h1>
+        
         <div class="account-balance">
-            <div class="stat-box">ID: <span id = "account-id">???</span></div>
-            <div class="stat-box">Username: <span id = "account-username">???</span></div>
+            <div class="stat-box">ID: <span id="account-id">???</span></div>
+            <div class="stat-box">Username: <span id="account-username">???</span></div>
             <div class="currency-grid">
                 <div class="stat-box">🌟Xp:<span id="account-xp">0</span></div>
                 <div class="stat-box">💰 <span id="account-gold">0</span></div>
@@ -22,20 +22,22 @@
                 <div class="stat-box">⚡ <span id="energy-val">7</span>/7</div>
             </div>
         </div>
+
          <div class="left-wing">
             <button class="btn-side" disabled>🎁 <br> Events</button>
             <button class="btn-side" disabled>🏆 <br> Tops</button>
-            <button class="btn-side" disabled>🛒 <br>Shop</button>
-            <button class="btn-side" disabled>🎭 <br> Customs </button>
+            <button class="btn-side" disabled>🛒 <br> Shop</button>
+            <button id="btn-customs" class="btn-side">🎭 <br> Customs</button>
         </div>
 
         <div class="right-grid">
-            <button class = "btn-side" disabled>🔁 <br> Transfer</button>
+            <button id="btn-inventory" class="btn-side">🎒 <br> Inventory</button>
         </div>
-        
+
         <button id="btn-play" class="btn-main">Play</button>
     </div>
 
+    <!-- ИГРОВОЙ ЭКРАН -->
     <div id="game-screen" class="screen hidden">
         <div class="game-header">
             <div class="stat-box rucksack">
@@ -56,6 +58,28 @@
         </div>
     </div>
 
+    <!-- ЭКРАН МАГАЗИНА СУЩЕСТВ (CUSTOMS) -->
+    <div id="customs-screen" class="screen hidden">
+        <h2 class="game-title">CUSTOMS SHOP</h2>
+        <p style="text-align:center; color:#aaa; font-size:14px; margin-bottom:10px;">
+            Next Summon Ritual in: <span id="shop-timer" style="color:#00ffcc; font-weight:bold;">24:00:00</span>
+        </p>
+        
+        <div id="shop-items-container" class="shop-grid"></div>
+        
+        <button id="btn-close-customs" class="btn-main" style="margin-top:20px;">Back to Menu</button>
+    </div>
+
+    <!-- ЭКРАН ИНВЕНТАРЯ -->
+    <div id="inventory-screen" class="screen hidden">
+        <h2 class="game-title">YOUR ENTITIES</h2>
+        
+        <div id="inventory-container" class="inventory-grid"></div>
+        
+        <button id="btn-close-inventory" class="btn-main" style="margin-top:20px;">Back to Menu</button>
+    </div>
+
+    <!-- ОВЕРЛЕЙ РЕЗУЛЬТАТОВ -->
     <div id="result-overlay" class="overlay hidden">
         <div class="overlay-content">
             <div id="result-emoji" class="result-big-emoji">💰</div>
