@@ -99,12 +99,17 @@ body, html {
 .btn-side {
     background: #0f061c;
     border: 1px solid #311259;
-    color: #6c548a;
+    color: #8c72b0;
     width: 85px;
     height: 55px;
     font-size: 12px;
     border-radius: 12px;
-    opacity: 0.5;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.btn-side:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
 }
 
 /* Кнопка ИГРАТЬ */
@@ -195,6 +200,7 @@ body, html {
     justify-content: center;
     align-items: center;
     box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
+    cursor: pointer;
 }
 
 .btn-action {
@@ -208,6 +214,125 @@ body, html {
     font-weight: bold;
     border-radius: 14px;
     box-shadow: 0 4px 12px rgba(0, 255, 102, 0.2);
+    cursor: pointer;
+}
+
+/* ==========================================
+   СЕТКИ ДЛЯ CUSTOMS И INVENTORY (ИНТЕГРАЦИЯ)
+   ========================================== */
+#customs-screen, #inventory-screen {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr auto;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.shop-grid, .inventory-grid {
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    max-height: 58vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* Полоса прокрутки в стиле UI */
+.shop-grid::-webkit-scrollbar, .inventory-grid::-webkit-scrollbar {
+    width: 4px;
+}
+.shop-grid::-webkit-scrollbar-thumb, .inventory-grid::-webkit-scrollbar-thumb {
+    background: #311259;
+    border-radius: 10px;
+}
+
+/* МИСТИЧЕСКИЕ КАРТОЧКИ СУЩЕСТВ */
+.item-card {
+    background: rgba(25, 10, 48, 0.5);
+    border: 2px solid #311259;
+    border-radius: 16px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    text-align: center;
+    backdrop-filter: blur(4px);
+}
+
+/* Градации редкости существ под неоновый стиль */
+.rarity-common { 
+    border-color: #554466; 
+    color: #ddd; 
+}
+.rarity-rare { 
+    border-color: #00ffff; 
+    color: #00ffff;
+    box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.15);
+}
+.rarity-legendary { 
+    border-color: #ff00ff; 
+    color: #ff00ff;
+    box-shadow: inset 0 0 15px rgba(255, 0, 255, 0.2);
+    animation: neonPulse 2.5s infinite ease-in-out;
+}
+
+@keyframes neonPulse {
+    0%, 100% { filter: drop-shadow(0 0 2px rgba(255,0,255,0.2)); }
+    50% { filter: drop-shadow(0 0 8px rgba(255,0,255,0.6)); }
+}
+
+.item-icon { 
+    font-size: 38px; 
+    margin-bottom: 4px; 
+}
+.item-name { 
+    font-size: 13px; 
+    font-weight: bold; 
+    margin-bottom: 2px;
+    color: #fff;
+}
+.item-desc { 
+    font-size: 10px; 
+    color: #a393b8; 
+    line-height: 1.2; 
+    margin-bottom: 8px;
+}
+.item-price { 
+    font-size: 13px; 
+    color: #ffea00; 
+    font-weight: bold; 
+    margin-bottom: 8px; 
+}
+
+.btn-buy {
+    background: linear-gradient(135deg, #00ff66 0%, #00aa44 100%);
+    color: #000;
+    border: none;
+    padding: 8px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0, 255, 102, 0.2);
+}
+.btn-buy:disabled { 
+    background: #1a1126; 
+    border: 1px solid #311259;
+    color: #554466; 
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Кнопки возврата из окон */
+#btn-close-customs, #btn-close-inventory {
+    grid-row: 4;
+    width: 100%;
+    max-width: 200px;
+    margin: 10px auto 10px auto;
+    padding: 12px;
+    font-size: 15px;
 }
 
 /* ==========================================
