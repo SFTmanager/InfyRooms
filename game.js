@@ -359,14 +359,25 @@ document.addEventListener("DOMContentLoaded", () => {
     function getRoomReward() {
         const multiplier = 1 + (roomStep * 0.15); 
         const xpGained = Math.floor((Math.random() * 10 + 5) * multiplier);
-        if (Math.random() < 0.60) {
+        const rand = Math.random();
+
+    // 15% шанс найти Энергию
+        if (rand < 0.15) {
+            const energyGained = Math.random() < 0.8 ? 1 : 2; // 1 или 2 энергии
+            return { type: 'energy', amount: energyGained, xp: xpGained, emoji: '⚡', name: 'Energy Cell' };
+        } 
+    // 55% шанс найти Золото
+        else if (rand < 0.70) {
             const goldGained = Math.floor((Math.random() * 80 + 40) * multiplier);
             return { type: 'gold', amount: goldGained, xp: xpGained, emoji: '💰', name: 'Gold' };
-        } else {
+        } 
+    // 30% шанс найти Гемы
+        else {
             const gemsGained = Math.floor((Math.random() * 2 + 1) * multiplier);
             return { type: 'gems', amount: gemsGained, xp: xpGained, emoji: '💎', name: 'Gems' };
-        }
     }
+}
+
 
     if (btnPlay) {
         btnPlay.addEventListener('click', () => {
