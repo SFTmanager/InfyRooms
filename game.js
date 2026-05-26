@@ -324,5 +324,4 @@ document.addEventListener("DOMContentLoaded", () => {
             updateUI();
         }
     }, 60000);
-    // Эффект манящих частиц из двери
 });
