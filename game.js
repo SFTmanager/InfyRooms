@@ -22,31 +22,49 @@ let userAccount = null;
 let userDocRef = null;
 
 // ==========================================
-// БАЗА ДАННЫХ СУЩЕСТВ И АРТЕФАКТОВ (ЛОРИКА)
+// НОВАЯ СИСТЕМА ЦЕННОСТЕЙ И РЕДКОСТЕЙ
 // ==========================================
 const ITEMS_DATABASE = {
+    // common - не больше 10
     "healer_card": { 
-        name: "Healer's Card", icon: "🃏", rarity: "common", chance: 0.50, price: 10, sailable: true,
+        name: "Healer's Card", icon: "🃏", rarity: "common", chance: 0.35, price: 10, sailable: true,
         desc: "The soul of an ancient doctor is inside. Whispers tips on how to survive."
     },
+    // rare - не больше 30
     "all_seeing_eye": { 
-        name: "All-Seeing Eye", icon: "👁️‍🗨️", 
-        rarity: "rare", 
-        chance: 0.38, 
-        price: 25, 
-        sailable: true,
+        name: "All-Seeing Eye", icon: "👁️‍🗨️", rarity: "rare", chance: 0.25, price: 30, sailable: true,
         desc: "Stares into the depths of reality. It can sense trap doors from a mile away."
     },
-    "shadow_reaper": { 
-        name: "Shadow Reaper", 
-        icon: "👥", 
-        rarity: "legendary", 
-        chance: 0.10, 
-        price: 500, 
-        sailable: true,
-        desc: "A dark entity following your reflection. It feeds on the explosions you dodge."
+    // epic - не больше 75
+    "killer_candy": { 
+        name: "Xmas Candy-Slayer", icon: "🍭", rarity: "epic", chance: 0.15, price: 75, sailable: true,
+        desc: "EVENT ITEM! This candy cane has sharp teeth. Do not put it in your pocket."
     },
-    // НОВОГОДНИЙ ИВЕНТ К СЛЕДУЮЩИМ ОБНОВЛЕНИЯМ
+    // mythic - не больше 150
+    "void_stone": { 
+        name: "Void Core", icon: "🔮", rarity: "mythic", chance: 0.11, price: 145, sailable: true,
+        desc: "A pulsating stone recovered from Room 999. It warps gravity."
+    },
+    // legendary - не больше 500
+    "shadow_reaper": { 
+        name: "Shadow Reaper", icon: "👥", rarity: "legendary", chance: 0.08, price: 500, sailable: true,
+        desc: "A dark entity following your reflection. Feeds on explosions."
+    },
+    // imaginary - не больше 600
+    "santa_spirit": { 
+        name: "Spirit of Santa", icon: "🎅", rarity: "imaginary", chance: 0.04, price: 580, sailable: false,
+        desc: "WINTER MAGIC! An entity that exists only as long as you believe in it."
+    },
+    // complex - не больше 800
+    "cyber_chimera": { 
+        name: "Cyber Chimera", icon: "🦁", rarity: "complex", chance: 0.017, price: 790, sailable: true,
+        desc: "A beast woven from forbidden code and lost player memories."
+    },
+    // universal - не больше 1000
+    "infinity_key": { 
+        name: "The Chronos Key", icon: "🔑", rarity: "universal", chance: 0.003, price: 1000, sailable: false,
+        desc: "An absolute cosmic artifact. Grants total control over architecture."
+    }
 };
 
 const defaultProfile = {
@@ -64,13 +82,12 @@ async function saveData() {
     if (!userDocRef || !userAccount) return;
     try {
         await setDoc(userDocRef, userAccount, { merge: true });
-        console.log("Firestore progress synchronized.");
+        console.log("Firestore sync success.");
     } catch (error) {
         console.error("Error saving progress:", error);
     }
 }
 
-// Авторизация и загрузка
 async function handleUserLogin() {
     try {
         let telegramUserId = "test_player_infy"; 
@@ -108,7 +125,7 @@ async function handleUserLogin() {
         if (typeof updateUI === "function") updateUI();
 
     } catch (error) {
-        console.error("CRITICAL AUTH ERROR:", error.message);
+        console.error("AUTH ERROR:", error.message);
         userAccount = { ...defaultProfile, telegram_id: "error", username: "Error" };
         if (typeof updateUI === "function") updateUI();
     }
@@ -128,10 +145,10 @@ function calculateOfflineEnergy() {
     }
 }
 
-// Проверка и смена товаров в Customs раз в 24 часа
 function checkAndRefreshShop() {
     if (!userAccount) return;
     const now = Date.now();
+    // Обновление раз в 24 часа
     if (now - userAccount.shopData.lastRefresh >= 86400000) {
         generateNewShopItems();
         saveData();
@@ -142,7 +159,7 @@ function generateNewShopItems() {
     const chosenIds = [];
     const itemIds = Object.keys(ITEMS_DATABASE);
 
-    for (let i = 0; i < 2; i++) { // Магазин предлагает 2 случайных слота за раз
+    for (let i = 0; i < 2; i++) {
         let rand = Math.random();
         let selectedId = itemIds[0];
 
@@ -159,7 +176,7 @@ function generateNewShopItems() {
     userAccount.shopData.lastRefresh = Date.now();
 }
 
-// Вывод товаров в Customs Shop
+// ОТРИСОВКА МАГАЗИНА (Цены берутся напрямую из конфига!)
 function renderShop() {
     const container = document.getElementById('shop-items-container');
     if (!container || !userAccount) return;
@@ -187,8 +204,10 @@ function renderShop() {
         }
 
         buyBtn.addEventListener('click', async () => {
-            if (userAccount.gems >= item.price) {
-                userAccount.gems -= item.price;
+            // Перепроверка цены динамически
+            const actualPrice = ITEMS_DATABASE[itemId].price;
+            if (userAccount.gems >= actualPrice) {
+                userAccount.gems -= actualPrice;
                 userAccount.inventory.push(itemId);
                 await saveData();
                 updateUI();
@@ -199,14 +218,13 @@ function renderShop() {
     });
 }
 
-// Вывод личного инвентаря
 function renderInventory() {
     const container = document.getElementById('inventory-container');
     if (!container || !userAccount) return;
     container.innerHTML = "";
 
     if (userAccount.inventory.length === 0) {
-        container.innerHTML = `<p style="color:#666; text-align:center; grid-column: 1/-1; padding-top:40px;">Your inventory is empty.<br>Go to Customs Shop to summon entities.</p>`;
+        container.innerHTML = `<p style="color:#554466; text-align:center; grid-column: 1/-1; padding-top:40px;">Your inventory is empty.<br>Go to Customs Shop to summon entities.</p>`;
         return;
     }
 
@@ -219,7 +237,7 @@ function renderInventory() {
         
         const saleStatus = item.sailable 
             ? `<span style="color:#00ffaa; font-size:11px;">📦 Market Tradable</span>` 
-            : `<span style="color:#ff4444; font-size:11px;">🔒 Soulbound</span>`;
+            : `<span style="color:#ff0055; font-size:11px;">🔒 Soulbound</span>`;
 
         card.innerHTML = `
             <div class="item-icon">${item.icon}</div>
@@ -240,7 +258,8 @@ function updateShopTimer() {
         const diff = (userAccount.shopData.lastRefresh + 86400000) - now;
 
         if (diff <= 0) {
-            checkAndRefreshShop();
+            generateNewShopItems();
+            saveData();
             renderShop();
             return;
         }
@@ -252,7 +271,6 @@ function updateShopTimer() {
     }, 1000);
 }
 
-// Игровой цикл и DOM события
 document.addEventListener("DOMContentLoaded", () => {
     const mainMenu = document.getElementById('main-menu');
     const gameScreen = document.getElementById('game-screen');
@@ -305,7 +323,6 @@ document.addEventListener("DOMContentLoaded", () => {
     handleUserLogin();
     updateShopTimer();
 
-    // Переключение экранов интерфейса
     if (btnCustoms) {
         btnCustoms.addEventListener('click', () => {
             mainMenu.classList.add('hidden');
@@ -333,7 +350,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Игровая сессия комнат
     function getRoomReward() {
         const multiplier = 1 + (roomStep * 0.15); 
         const xpGained = Math.floor((Math.random() * 10 + 5) * multiplier);
@@ -430,7 +446,6 @@ document.addEventListener("DOMContentLoaded", () => {
         doors.forEach(door => { door.innerText = '🚪'; door.style.transform = "none"; });
     }
 
-    // Регенерация энергии в фоне
     setInterval(() => {
         if (!userAccount) return;
         if (userAccount.energy >= 7) { userAccount.lastEnergyUpdate = Date.now(); return; }
@@ -442,3 +457,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }, 60000);
 });
+                    
