@@ -251,21 +251,30 @@ function renderInventory() {
 
 function updateShopTimer() {
     const timerEl = document.getElementById('shop-timer');
-    if (!timerEl || !userAccount) return;
+    if (!timerEl) return;
 
-    setInterval(() => {
+    // Сбрасываем старый интервал, если он был, чтобы они не накладывались
+    if (window.shopTimerInterval) clearInterval(window.shopTimerInterval);
+
+    window.shopTimerInterval = setInterval(() => {
+        if (!userAccount || !userAccount.shopData) return;
+        
         const now = Date.now();
-        const diff = (userAccount.shopData.lastRefresh + 86400000) - now;
+        const nextRestock = userAccount.shopData.lastRefresh + 86400000;
+        const diff = nextRestock - now;
 
         if (diff <= 0) {
+            clearInterval(window.shopTimerInterval);
             checkAndRefreshShop();
             renderShop();
+            updateShopTimer(); // Перезапускаем таймер для следующих 24 часов
             return;
         }
 
         const hours = Math.floor(diff / 3600000).toString().padStart(2, '0');
         const minutes = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
         const seconds = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+        
         timerEl.innerText = `${hours}:${minutes}:${seconds}`;
     }, 1000);
 }
