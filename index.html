@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>InfyRooms</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <!-- Добавлена версия ?v=1.0.2 для гарантированного обхода кэша Telegram -->
+    <link rel="stylesheet" href="style.css?v=1.0.3">
 </head>
 <body>
     <!-- ГЛАВНОЕ МЕНЮ -->
@@ -13,13 +14,12 @@
         <h1 class="game-title">INFYROOMS</h1>
         
         <div class="account-balance">
-            <div class="stat-box">ID: <span id="account-id">???</span></div>
-            <div class="stat-box">Username: <span id="account-username">???</span></div>
+            <div class="xp-bar-container">ID: <span id="account-id">???</span> | @<span id="account-username">???</span></div>
             <div class="currency-grid">
-                <div class="stat-box">🌟Xp:<span id="account-xp">0</span></div>
-                <div class="stat-box">💰 <span id="account-gold">0</span></div>
-                <div class="stat-box">💎 <span id="account-gems">0</span></div>
-                <div class="stat-box">⚡ <span id="energy-val">7</span>/7</div>
+                <div>🌟 <span id="account-xp">0</span></div>
+                <div>💰 <span id="account-gold">0</span></div>
+                <div>💎 <span id="account-gems">0</span></div>
+                <div>⚡ <span id="energy-val">7</span>/7</div>
             </div>
         </div>
 
@@ -27,11 +27,11 @@
             <button class="btn-side" disabled>🎁 <br> Events</button>
             <button class="btn-side" disabled>🏆 <br> Tops</button>
             <button class="btn-side" disabled>🛒 <br> Shop</button>
-            <button id="btn-customs" class="btn-side">🎭 <br> Customs</button>
+            <button id="btn-customs" class="btn-side" style="opacity:1; color:#fff;">🎭 <br> Customs</button>
         </div>
 
         <div class="right-grid">
-            <button id="btn-inventory" class="btn-side">🎒 <br> Inventory</button>
+            <button id="btn-inventory" class="btn-side" style="opacity:1; color:#fff;">🎒 <br> Inventory</button>
         </div>
 
         <button id="btn-play" class="btn-main">Play</button>
@@ -61,13 +61,14 @@
     <!-- ЭКРАН МАГАЗИНА СУЩЕСТВ (CUSTOMS) -->
     <div id="customs-screen" class="screen hidden">
         <h2 class="game-title">CUSTOMS SHOP</h2>
-        <p style="text-align:center; color:#aaa; font-size:14px; margin-bottom:10px;">
-            Next Summon Ritual in: <span id="shop-timer" style="color:#00ffcc; font-weight:bold;">24:00:00</span>
+        <p style="text-align:center; color:#8c72b0; font-size:13px; font-weight:bold; margin-bottom:5px;">
+            Next Restock in: <span id="shop-timer" style="color:#00ffff;">24:00:00</span>
         </p>
         
+        <!-- Контейнер для свайпа 4 товаров -->
         <div id="shop-items-container" class="shop-grid"></div>
         
-        <button id="btn-close-customs" class="btn-main" style="margin-top:20px;">Back to Menu</button>
+        <button id="btn-close-customs" class="btn-main">Back to Menu</button>
     </div>
 
     <!-- ЭКРАН ИНВЕНТАРЯ -->
@@ -76,7 +77,7 @@
         
         <div id="inventory-container" class="inventory-grid"></div>
         
-        <button id="btn-close-inventory" class="btn-main" style="margin-top:20px;">Back to Menu</button>
+        <button id="btn-close-inventory" class="btn-main">Back to Menu</button>
     </div>
 
     <!-- ОВЕРЛЕЙ РЕЗУЛЬТАТОВ -->
